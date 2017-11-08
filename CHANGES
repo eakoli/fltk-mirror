@@ -1,0 +1,134 @@
+Changes in FLTK 1.4.0					Released: ??? ?? 2017
+
+  General Information about this Release
+
+  - FLTK 1.4.0 is based on FLTK 1.3.4 (released Nov 15 2016),
+    see CHANGES_1.3 for more information.
+
+  - CMake is the primary supported build system in FLTK 1.4.0 and later.
+    CMake can be used to generate Makefiles, IDE project files, and
+    several other build systems by using different "generators" provided
+    by CMake (for instance Ninja, CodeBlocks, Eclipse, KDevelop3, Xcode, etc.).
+    See README.CMake.txt for more information.
+
+  - autoconf/configure is still supported by the FLTK team for backwards
+    compatibility with older systems that lack CMake support.
+
+
+  New Features and Extensions
+
+  - (add new items here)
+  - New Fl_SVG_Image class: gives support of scalable vector graphics images
+    to FLTK using the nanosvg software.
+  - Fl_Text_Selection got a new method length() and returns 0 in length()
+    and in all offsets (start(), end(), position()) if no text is selected
+    (selected() == false). The behavior in FLTK 1.3 and earlier versions
+    (returning undefined values if !selected()) was confusing.
+  - Added support for MacOS 10.13 "High Sierra".
+  - New method Fl_Group::bounds() replaces Fl_Group::sizes() which is now
+    deprecated. Fl_Group::bounds() uses the new class Fl_Rect that contains
+    widget coordinates and sizes x(), y(), w(), and h() (STR #3385).
+    Documentation for bounds() and its internal structure was added.
+  - X11 platform: Added support for HiDPI displays and for rescaling any window
+    at run-time under user control. Under the gnome desktop, FLTK applications
+    detect the current gnome scaling factor and use it to scale all FLTK windows.
+    Under other desktops, the FLTK_SCALING_FACTOR environment variable can be
+    used to set the starting scaling factor of all FLTK applications.
+    In addition, it is possible to rescale all FLTK windows mapped to a screen
+    by typing ctrl-'+' (enlarge), ctrl-'-' (shrink) or ctrl-'0' (back to starting
+    factor value). Windows moved between screens adjust to the scaling factor of
+    their screen. This supports desktops mixing screens with distinct resolutions.
+    [HiDPI displays have been supported since FLTK 1.3.3 for the WIN32 and MacOS platforms].
+  - New method shadow(int) allows to disable the shadows of the hands
+    of Fl_Clock, Fl_Clock_Output, and derived widgets.
+  - New method Fl_Tabs::tab_align() allows to set alignment of tab labels,
+    particularly to support icons on tab labels (STR #3076).
+  - Added '--enable-print' option to configure effective under X11 platforms
+    and with 'yes' default value. Using '--enable-print=no' removes print
+    and PostScript support from the FLTK library, thus reducing its size.
+  - Added Fl_Surface_Device::push_current(new_surface) and
+    Fl_Surface_Device::pop_current() to set/unset the current surface
+    receiving graphics commands.
+  - X11 platform: Added support for drawing text with the pango library
+    which allows to draw most scripts supported by Unicode, including CJK
+    and right-to-left scripts. The corresponding CMake option is
+    OPTION_USE_PANGO. The corresponding configure option is --enable-pango.
+    This option is OFF by default.
+
+  New Configuration Options (ABI Version)
+
+  - The library can be built without support for SVG images using the
+    --disable-nanosvg configure option or turning off OPTION_USE_NANOSVG in CMake.
+  - FLTK's ABI version can be configured with 'configure' and CMake.
+    See documentation in README.abi-version.txt.
+
+
+  1.4.0 ABI FEATURES
+
+  - None. FLTK 1.4.0 has a new ABI, breaking 1.3.x ABI.
+
+
+  Other Improvements
+
+  - (add new items here)
+  - The Fl_Boxtype and Fl_Labeltype definitions contained enum values
+    (names) with a leading underscore (e.g. _FL_MULTI_LABEL) that had to
+    be used in this form. Now all boxtypes and labeltypes can and should
+    be used without the leading underscore. A note was added to the enum
+    documentations to make clear that the leading underscore must not be
+    used in user code, although the enum documentation still contains
+    leading underscores for technical reasons (internal use).
+  - The blocks demo program got a new keyboard shortcut (ALT+SHIFT+H) to
+    reset the user's high score. It is now slower than before in higher
+    levels, hence you can expect higher scores (due to a bug fix in the
+    timer code). You can use the '+' key to increase the level at all times.
+  - Some methods of Fl_Tabs are now virtual and/or protected for easier
+    subclassing without code duplication (STR #3211 and others).
+    To be continued...
+  - Separated Fl_Input_Choice.H and Fl_Input_Choice.cxx (STR #2750, #2752).
+  - Separated Fl_Spinner.H and Fl_Spinner.cxx (STR #2776).
+  - New method Fl_Spinner::wrap(int) allows to set wrap mode at bounds if
+    value is changed by pressing or holding one of the buttons (STR #3365).
+  - Fl_Spinner now handles Up and Down keys when the input field has
+    keyboard focus (STR #2989).
+  - Renamed test/help.cxx demo program to test/help_dialog.cxx to avoid
+    name conflict with CMake's auto-generated target 'help'.
+  - Many documentation fixes, clarifications, and enhancements.
+
+
+  Bug Fixes
+
+  - (add new items here)
+  - Fix Fl_PNG_Image error handling. An error was potentially caused
+    by error handling of the image library with setjmp/longjmp.
+  - Fix Fl_Browser background and text color parsing (STR #3376).
+  - Fix Windows CreateDC/DeleteDC mismatch (STR #3373).
+  - Fix Fl_Tabs label drawing for Fl_Window children (STR #3075).
+  - Fix line number alignment in Fl_Text_Display/Editor (STR #3363).
+  - Fix ignored buffer pre-allocation (requestedSize) in Fl_Text_Buffer.
+    See fltk.general "Fl_Text_Buffer constructor bug" on Dec 5, 2016.
+  - Fix build with configure --enable-cairo --enable-cairoext,
+    see this report in fltk.general:
+    https://groups.google.com/forum/#!topic/fltkgeneral/x80qQ6wt0s4
+
+
+  Removed Features
+
+  - Bundled IDE project files (Xcode and Visual Studio) have been
+    removed. Please use CMake to generate your IDE project files.
+    See README.CMake.txt for more information.
+
+
+Changes in FLTK 1.3
+
+  See CHANGES_1.3
+
+
+Changes in FLTK 1.1
+
+  See CHANGES_1.1
+
+
+Changes in FLTK 1.0
+
+  See CHANGES_1.0
