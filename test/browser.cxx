@@ -1,5 +1,5 @@
 //
-// "$Id: browser.cxx 12462 2017-09-19 17:17:44Z greg.ercolano $"
+// "$Id: browser.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $"
 //
 // Browser test program for the Fast Light Tool Kit (FLTK).
 //
@@ -58,6 +58,7 @@ That was a blank line above this.
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Int_Input.H>
 #include <FL/Fl_Choice.H>
+#include <FL/Fl_Simple_Terminal.H>
 #include <FL/fl_ask.H>
 #include <stdio.h>
 #include <string.h>
@@ -74,6 +75,7 @@ Fl_Button	*top,
 Fl_Choice       *btype;
 Fl_Choice       *wtype;
 Fl_Int_Input	*field;
+Fl_Simple_Terminal *tty = 0;
 
 typedef struct {
   const char *name;
@@ -95,7 +97,7 @@ WhenItem when_items[] = {
 };
 
 void b_cb(Fl_Widget* o, void*) {
-  printf("callback, selection = %d, event_clicks = %d\n",
+  tty->printf("callback, selection = \033[31m%d\033[0m, event_clicks = \033[32m%d\033[0m\n",
 	 ((Fl_Browser*)o)->value(), Fl::event_clicks());
 }
 
@@ -154,7 +156,7 @@ int main(int argc, char **argv) {
   int i;
   if (!Fl::args(argc,argv,i)) Fl::fatal(Fl::help);
   const char* fname = (i < argc) ? argv[i] : "browser.cxx";
-  Fl_Double_Window window(720,400,fname);
+  Fl_Double_Window window(720,520,fname);
   browser = new Fl_Select_Browser(0,0,window.w(),350,0);
   browser->type(FL_MULTI_BROWSER);
   //browser->type(FL_HOLD_BROWSER);
@@ -232,12 +234,17 @@ int main(int argc, char **argv) {
   wtype->callback(wtype_cb);
   wtype->value(4);                          // FL_WHEN_RELEASE_ALWAYS is Fl_Browser's default
 
+  // Small terminal window for callback messages
+  tty = new Fl_Simple_Terminal(0,400,720,120);
+  tty->history_lines(50);
+  tty->ansi(true);
+
   window.resizable(browser);
   window.show(argc,argv);
   return Fl::run();
 }
 
 //
-// End of "$Id: browser.cxx 12462 2017-09-19 17:17:44Z greg.ercolano $".
+// End of "$Id: browser.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $".
 //
 

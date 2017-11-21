@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Cocoa_Printer_Driver.mm 12022 2016-10-10 21:19:39Z manolo $"
+// "$Id: Fl_Cocoa_Printer_Driver.mm 12541 2017-11-03 12:09:20Z manolo $"
 //
 // Mac OS X-specific printing support (objective-c++) for the Fast Light Tool Kit (FLTK).
 //
@@ -427,15 +427,15 @@ void Fl_Cocoa_Printer_Driver::draw_decorated_window(Fl_Window *win, int x_offset
     return;
   }
   Fl_Display_Device::display_device()->set_current(); // send win to front and make it current
-  NSString *title = [fl_xid(win) title];
+  NSString *title = [(NSWindow*)fl_xid(win) title];
   [title retain];
-  [fl_xid(win) setTitle:@""]; // temporarily set a void window title
+  [(NSWindow*)fl_xid(win) setTitle:@""]; // temporarily set a void window title
   win->show();
   Fl::check();
   // capture the window title bar with no title
   Fl_Shared_Image *top, *left, *bottom, *right;
   win->driver()->capture_titlebar_and_borders(top, left, bottom, right);
-  [fl_xid(win) setTitle:title]; // put back the window title
+  [(NSWindow*)fl_xid(win) setTitle:title]; // put back the window title
   this->set_current(); // back to the Fl_Paged_Device
   top->draw(x_offset, y_offset); // print the title bar
   top->release();
@@ -474,5 +474,5 @@ void Fl_Cocoa_Printer_Driver::draw_decorated_window(Fl_Window *win, int x_offset
 }
 
 //
-// End of "$Id: Fl_Cocoa_Printer_Driver.mm 12022 2016-10-10 21:19:39Z manolo $".
+// End of "$Id: Fl_Cocoa_Printer_Driver.mm 12541 2017-11-03 12:09:20Z manolo $".
 //

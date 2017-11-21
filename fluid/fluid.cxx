@@ -1,9 +1,9 @@
 //
-// "$Id: fluid.cxx 12045 2016-10-17 19:20:36Z greg.ercolano $"
+// "$Id: fluid.cxx 12558 2017-11-12 18:00:45Z AlbrechtS $"
 //
 // FLUID main entry for the Fast Light Tool Kit (FLTK).
 //
-// Copyright 1998-2016 by Bill Spitzak and others.
+// Copyright 1998-2017 by Bill Spitzak and others.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -55,14 +55,6 @@
 #  include <fcntl.h>
 #  include <commdlg.h>
 #  include <FL/x.H>
-#  ifndef __WATCOMC__
-// Visual C++ 2005 incorrectly displays a warning about the use of POSIX APIs
-// on Windows, which is supposed to be POSIX compliant...
-#    define access _access
-#    define chdir _chdir
-#    define getcwd _getcwd
-#    define unlink _unlink
-#  endif // !__WATCOMC__
 #else
 #  include <unistd.h>
 #endif
@@ -133,18 +125,21 @@ void goto_source_dir() {
   strlcpy(buffer, filename, sizeof(buffer));
   int n = (int)(p-filename); if (n>1) n--; buffer[n] = 0;
   if (!pwd) {
-    pwd = getcwd(0,FL_PATH_MAX);
-    if (!pwd) {fprintf(stderr,"getwd : %s\n",strerror(errno)); return;}
+    pwd = fl_getcwd(0, FL_PATH_MAX);
+    if (!pwd) {fprintf(stderr, "getwd : %s\n",strerror(errno)); return;}
   }
-  if (chdir(buffer)<0) {fprintf(stderr, "Can't chdir to %s : %s\n",
-				buffer, strerror(errno)); return;}
+  if (fl_chdir(buffer) < 0) {
+    fprintf(stderr, "Can't chdir to %s : %s\n", buffer, strerror(errno));
+    return;
+  }
   in_source_dir = 1;
 }
 
 void leave_source_dir() {
   if (!in_source_dir) return;
-  if (chdir(pwd)<0) {fprintf(stderr, "Can't chdir to %s : %s\n",
-			     pwd, strerror(errno));}
+  if (fl_chdir(pwd) < 0) {
+    fprintf(stderr, "Can't chdir to %s : %s\n", pwd, strerror(errno));
+  }
   in_source_dir = 0;
 }
 
@@ -236,7 +231,7 @@ void save_cb(Fl_Widget *, void *v) {
     fnfc.filter("FLUID Files\t*.f[ld]");
     if (fnfc.show() != 0) return;
     c = fnfc.filename();
-    if (!access(c, 0)) {
+    if (!fl_access(c, 0)) {
       const char *basename;
       if ((basename = strrchr(c, '/')) != NULL)
         basename ++;
@@ -320,7 +315,7 @@ void save_template_cb(Fl_Widget *, void *) {
   // Save the .fl file...
   strcpy(ext, ".fl");
 
-  if (!access(filename, 0)) {
+  if (!fl_access(filename, 0)) {
     if (fl_choice("The template \"%s\" already exists.\n"
                   "Do you want to replace it?", "Cancel",
 		  "Replace", NULL, c) == 0) return;
@@ -671,7 +666,7 @@ void new_cb(Fl_Widget *, void *v) {
 
       undo_suspend();
       read_file(cutfname(1), 0);
-      unlink(cutfname(1));
+      fl_unlink(cutfname(1));
       undo_resume();
     } else {
       // No instance name, so read the template without replacements...
@@ -864,7 +859,7 @@ void duplicate_cb(Fl_Widget*, void*) {
   if (!read_file(cutfname(1), 1)) {
     fl_message("Can't read %s: %s", cutfname(1), strerror(errno));
   }
-  unlink(cutfname(1));
+  fl_unlink(cutfname(1));
   undo_resume();
 
   force_parent = 0;
@@ -899,7 +894,7 @@ void show_help(const char *name) {
 
   if (!help_dialog) help_dialog = new Fl_Help_Dialog();
 
-  if ((docdir = getenv("FLTK_DOCDIR")) == NULL) {
+  if ((docdir = fl_getenv("FLTK_DOCDIR")) == NULL) {
     docdir = FLTK_DOCDIR;
   }
   snprintf(helpname, sizeof(helpname), "%s/%s", docdir, name);
@@ -1860,5 +1855,5 @@ int main(int argc,char **argv) {
 }
 
 //
-// End of "$Id: fluid.cxx 12045 2016-10-17 19:20:36Z greg.ercolano $".
+// End of "$Id: fluid.cxx 12558 2017-11-12 18:00:45Z AlbrechtS $".
 //

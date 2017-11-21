@@ -1,5 +1,5 @@
 //
-// "$Id: Fl.H 12344 2017-07-20 15:06:11Z AlbrechtS $"
+// "$Id: Fl.H 12525 2017-10-25 05:26:49Z manolo $"
 //
 // Main header file for the Fast Light Tool Kit (FLTK).
 //
@@ -1185,15 +1185,15 @@ int main() {
 
   // Drag-n-drop text operation methods...
   /**
-    Gets or sets whether drag and drop text operations are supported.
+    Sets whether drag and drop text operations are supported.
     This specifically affects whether selected text can
     be dragged from text fields or dragged within a text field as a
     cut/paste shortcut.
   */
   static void dnd_text_ops(int v) { option(OPTION_DND_TEXT, (v!=0)); }
   /**
-    Gets or sets whether drag and drop text operations are
-    supported. This specifically affects whether selected text can
+    Gets whether drag and drop text operations are
+    supported. This returns whether selected text can
     be dragged from text fields or dragged within a text field as a
     cut/paste shortcut.
   */
@@ -1405,5 +1405,5 @@ public:
 #endif // !Fl_H
 
 //
-// End of "$Id: Fl.H 12344 2017-07-20 15:06:11Z AlbrechtS $".
+// End of "$Id: Fl.H 12525 2017-10-25 05:26:49Z manolo $".
 //

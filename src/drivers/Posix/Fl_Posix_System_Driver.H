@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Posix_System_Driver.H 12476 2017-10-04 12:21:46Z manolo $"
+// "$Id: Fl_Posix_System_Driver.H 12549 2017-11-10 12:56:00Z AlbrechtS $"
 //
 // Definition of Posix system driver
 // for the Fast Light Tool Kit (FLTK).
@@ -60,6 +60,7 @@ public:
   virtual int access(const char* f, int mode) { return ::access(f, mode);}
   virtual int stat(const char* f, struct stat *b) { return ::stat(f, b);}
   virtual char *getcwd(char* b, int l) {return ::getcwd(b, l);}
+  virtual int chdir(const char* path) {return ::chdir(path);}
   virtual int unlink(const char* f) {return ::unlink(f);}
   virtual int rmdir(const char* f) {return ::rmdir(f);}
   virtual int rename(const char* f, const char *n) {return ::rename(f, n);}
@@ -80,5 +81,5 @@ public:
 #endif // FL_POSIX_SYSTEM_DRIVER_H
 
 //
-// End of "$Id: Fl_Posix_System_Driver.H 12476 2017-10-04 12:21:46Z manolo $".
+// End of "$Id: Fl_Posix_System_Driver.H 12549 2017-11-10 12:56:00Z AlbrechtS $".
 //

@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Text_Buffer.H 12356 2017-07-26 12:32:13Z AlbrechtS $"
+// "$Id: Fl_Text_Buffer.H 12483 2017-10-08 20:38:36Z greg.ercolano $"
 //
 // Header file for Fl_Text_Buffer class.
 //
@@ -22,6 +22,7 @@
 #ifndef FL_TEXT_BUFFER_H
 #define FL_TEXT_BUFFER_H
 
+#include <stdarg.h>	/* va_start/end */
 
 #undef ASSERT_UTF8
 
@@ -286,6 +287,9 @@ public:
    \param t UTF-8 encoded and nul terminated text
    */
   void append(const char* t) { insert(length(), t); }
+
+  void vprintf(const char *fmt, va_list ap);
+  void printf(const char* fmt, ...);
 
   /**
    Deletes a range of characters in the buffer.
@@ -839,5 +843,5 @@ protected:
 #endif
 
 //
-// End of "$Id: Fl_Text_Buffer.H 12356 2017-07-26 12:32:13Z AlbrechtS $".
+// End of "$Id: Fl_Text_Buffer.H 12483 2017-10-08 20:38:36Z greg.ercolano $".
 //

@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_SVG_Image.cxx 12479 2017-10-05 18:32:52Z AlbrechtS $"
+// "$Id: Fl_SVG_Image.cxx 12546 2017-11-05 20:43:44Z AlbrechtS $"
 //
 // SVG image code for the Fast Light Tool Kit (FLTK).
 //
@@ -45,13 +45,13 @@ static double strtoll(const char *str, char **endptr, int base) {
 
 
 /** The constructor loads the SVG image from the given .svg/.svgz filename or in-memory data.
- \param filename A full path and name pointing to a .svg or .svgz file, or NULL.
- \param filedata A pointer to the memory location of the SVG image data.
+ \param filename The full path and name of a .svg or .svgz file, or NULL.
+ \param svg_data A pointer to the memory location of the SVG image data.
  This parameter allows to load an SVG image from in-memory data, and is used when \p filename is NULL.
- \note In-memory SVG data is modified by the object constructor and is no longer used after construction.
+ \note In-memory SVG data is parsed by the object constructor and is not used after construction.
  */
-Fl_SVG_Image::Fl_SVG_Image(const char *filename, char *filedata) : Fl_RGB_Image(NULL, 0, 0, 4) {
-  init_(filename, filedata, NULL);
+Fl_SVG_Image::Fl_SVG_Image(const char *filename, const char *svg_data) : Fl_RGB_Image(NULL, 0, 0, 4) {
+  init_(filename, svg_data, NULL);
 }
 
 
@@ -76,36 +76,24 @@ float Fl_SVG_Image::svg_scaling_(int W, int H) {
   return (f1 < f2) ? f1 : f2;
 }
 
-/** Opens for reading a potentially gzip'ed file identified by a UTF-8 encoded filename. */
-void* Fl_SVG_Image::fl_gzopen(const char *fname) {
-#if defined(HAVE_LIBZ)
-#  ifdef _WIN32
-  unsigned wl = fl_utf8towc(fname, strlen(fname), NULL, 0) + 1;
-  wchar_t *wc = new wchar_t[wl];
-  fl_utf8towc(fname, strlen(fname), wc, wl);
-  gzFile gzf = gzopen_w(wc, "r");
-  delete[] wc;
-  return gzf;
-#  else
-  int fd = fl_open(fname, 0);
-  if (fd < 0) return NULL;
-  return gzdopen(fd, "r");
-#  endif
-#else
-  return NULL;
-#endif // HAVE_LIBZ
-}
-
 #if defined(HAVE_LIBZ)
 
 static char *svg_inflate(const char *fname) {
-  struct stat b;
-  fl_stat(fname, &b);
-  long size = b.st_size;
-  gzFile gzf = (gzFile)Fl_SVG_Image::fl_gzopen(fname);
+  FILE *in = fl_fopen(fname, "r");
+  if (!in) return NULL;
+  unsigned char header[2];
+  if (fread(header, 2, 1, in) < 1) {	// FIXME: can't read file header
+    header[0] = header[1] = 0;		// FIXME: continuing anyway ?
+  }
+  int direct = (header[0] != 0x1f || header[1] != 0x8b);
+  fseek(in, 0, SEEK_END);
+  long size = ftell(in);
+  fclose(in);
+  int fd = fl_open_ext(fname, 1, 0);
+  if (fd < 0) return NULL;
+  gzFile gzf =  gzdopen(fd, "r");
   if (!gzf) return NULL;
   int l;
-  bool direct = gzdirect(gzf);
   long out_size = direct ? size + 1 : 3*size + 1;
   char *out = (char*)malloc(out_size);
   char *p = out;
@@ -127,9 +115,9 @@ static char *svg_inflate(const char *fname) {
 }
 #endif
 
-void Fl_SVG_Image::init_(const char *filename, char *filedata, Fl_SVG_Image *copy_source) {
+void Fl_SVG_Image::init_(const char *filename, const char *in_filedata, Fl_SVG_Image *copy_source) {
   if (copy_source) {
-    filename = filedata = NULL;
+    filename = in_filedata = NULL;
     counted_svg_image_ = copy_source->counted_svg_image_;
     counted_svg_image_->ref_count++;
   } else {
@@ -137,6 +125,7 @@ void Fl_SVG_Image::init_(const char *filename, char *filedata, Fl_SVG_Image *cop
     counted_svg_image_->svg_image = NULL;
     counted_svg_image_->ref_count = 1;
   }
+  char *filedata = NULL;
   to_desaturate_ = false;
   average_weight_ = 1;
   proportional = true;
@@ -144,7 +133,6 @@ void Fl_SVG_Image::init_(const char *filename, char *filedata, Fl_SVG_Image *cop
 #if defined(HAVE_LIBZ)
     filedata = svg_inflate(filename);
 #else
-    filedata = NULL;
     FILE *fp = fl_fopen(filename, "rb");
     if (fp) {
       fseek(fp, 0, SEEK_END);
@@ -154,8 +142,7 @@ void Fl_SVG_Image::init_(const char *filename, char *filedata, Fl_SVG_Image *cop
       if (filedata) {
         if (fread(filedata, 1, size, fp) == size) {
           filedata[size] = '\0';
-        }
-        else {
+        } else {
           free(filedata);
           filedata = NULL;
         }
@@ -164,10 +151,13 @@ void Fl_SVG_Image::init_(const char *filename, char *filedata, Fl_SVG_Image *cop
     }
 #endif // HAVE_LIBZ
     if (!filedata) ld(ERR_FILE_ACCESS);
+  } else {
+    // XXX: Make internal copy -- nsvgParse() modifies filedata during parsing (!)
+    filedata = in_filedata ? strdup(in_filedata) : NULL;
   }
   if (filedata) {
     counted_svg_image_->svg_image = nsvgParse(filedata, "px", 96);
-    if (filename) free(filedata);
+    free(filedata);	// made with svg_inflate|malloc|strdup
     if (counted_svg_image_->svg_image->width == 0 || counted_svg_image_->svg_image->height == 0) {
       d(-1);
       ld(ERR_FORMAT);
@@ -220,7 +210,7 @@ Fl_Image *Fl_SVG_Image::copy(int W, int H) {
 /** Have the svg data (re-)rasterized using the given width and height values.
  By default, the resulting image w() and h() will preserve the width/height ratio
  of the SVG data.
- If \ref proportional was set to false, the image is rasterized to the given \c width
+ If \ref proportional was set to \c false, the image is rasterized to the given \c width
  and \c height values.*/
 void Fl_SVG_Image::resize(int width, int height) {
   if (ld() < 0) {
@@ -290,5 +280,5 @@ int Fl_SVG_Image::draw_scaled(int X, int Y, int W, int H) {
 #endif // FLTK_USE_NANOSVG
 
 //
-// End of "$Id: Fl_SVG_Image.cxx 12479 2017-10-05 18:32:52Z AlbrechtS $".
+// End of "$Id: Fl_SVG_Image.cxx 12546 2017-11-05 20:43:44Z AlbrechtS $".
 //

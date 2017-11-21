@@ -1,9 +1,9 @@
 /*
- * "$Id: flstring.h 11590 2016-04-12 17:53:18Z AlbrechtS $"
+ * "$Id: flstring.h 12498 2017-10-15 10:46:16Z AlbrechtS $"
  *
  * Common string header file for the Fast Light Tool Kit (FLTK).
  *
- * Copyright 1998-2016 by Bill Spitzak and others.
+ * Copyright 1998-2017 by Bill Spitzak and others.
  *
  * This library is free software. Distribution and use rights are outlined in
  * the file "COPYING" which should have been included with this file.  If this
@@ -39,18 +39,20 @@
 #    undef index
 #  endif /* index */
 
+/*
+ * Visual C++ 2005 incorrectly displays a warning about the use of
+ * POSIX APIs on Windows, which is supposed to be POSIX compliant...
+ * Some of these functions are also defined in ISO C99...
+ */
+
+#  if defined(_MSC_VER)
+#    define strdup _strdup
+#  endif /* _MSC_VER */
+
 #  if defined(WIN32) && !defined(__CYGWIN__) && !defined(__MINGW32__)
 #    define strcasecmp(s,t)	_stricmp((s), (t))
 #    define strncasecmp(s,t,n)	_strnicmp((s), (t), (n))
-/* Visual C++ 2005 incorrectly displays a warning about the use of POSIX APIs
- * on Windows, which is supposed to be POSIX compliant...  Some of these
- * functions are also defined in ISO C99...
- */
-#    ifndef __WATCOMC__
-#      define strdup _strdup
-#      /* define unlink _unlink */
-#    endif /* !__WATCOMC__ */
-#  endif /* WIN32 */
+#  endif /* WIN32 && ... */
 
 #  ifdef __cplusplus
 extern "C" {
@@ -82,8 +84,8 @@ FL_EXPORT extern size_t fl_strlcpy(char *, const char *, size_t);
 #  endif /* !HAVE_STRLCPY */
 
 /*
- * locale independent ascii compare, does not introduce locale 
- * pbs as w/  case cmp 
+ * Locale independent ASCII string compare function,
+ * does not introduce locale issues as with strcasecmp()
  */
 FL_EXPORT extern int fl_ascii_strcasecmp(const char *s, const char *t);
 
@@ -94,5 +96,5 @@ FL_EXPORT extern int fl_ascii_strcasecmp(const char *s, const char *t);
 #endif /* !flstring_h */
 
 /*
- * End of "$Id: flstring.h 11590 2016-04-12 17:53:18Z AlbrechtS $".
+ * End of "$Id: flstring.h 12498 2017-10-15 10:46:16Z AlbrechtS $".
  */

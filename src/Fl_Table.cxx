@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Table.cxx 12390 2017-08-18 15:16:08Z AlbrechtS $"
+// "$Id: Fl_Table.cxx 12505 2017-10-16 20:39:02Z AlbrechtS $"
 //
 // Fl_Table -- A table widget
 //
@@ -267,7 +267,7 @@ void Fl_Table::col_width(int col, int width)
 }
 
 /**
-  Return specfied row/col values R and C to within the table's
+  Return specified row/col values R and C to within the table's
   current row/col limits.
   \returns 0 if no changes were made, or 1 if they were.
 */
@@ -1398,5 +1398,5 @@ void Fl_Table::draw() {
 }
 
 //
-// End of "$Id: Fl_Table.cxx 12390 2017-08-18 15:16:08Z AlbrechtS $".
+// End of "$Id: Fl_Table.cxx 12505 2017-10-16 20:39:02Z AlbrechtS $".
 //

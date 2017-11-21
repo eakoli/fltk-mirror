@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Shared_Image.cxx 12409 2017-08-30 10:21:56Z manolo $"
+// "$Id: Fl_Shared_Image.cxx 12488 2017-10-12 13:05:00Z manolo $"
 //
 // Shared image code for the Fast Light Tool Kit (FLTK).
 //
@@ -401,6 +401,8 @@ void Fl_Shared_Image::scale(int width, int height, int proportional, int can_exp
   w(width);
   h(height);
   if (!image_ || image_->fail()) return;
+  if (!proportional && can_expand) return;
+  if (!proportional && width <= image_->w() && height <= image_->h()) return;
   float fw = image_->w() / float(width);
   float fh = image_->h() / float(height);
   if (proportional) {
@@ -601,5 +603,5 @@ void Fl_Shared_Image::remove_handler(Fl_Shared_Handler f) {
 
 
 //
-// End of "$Id: Fl_Shared_Image.cxx 12409 2017-08-30 10:21:56Z manolo $".
+// End of "$Id: Fl_Shared_Image.cxx 12488 2017-10-12 13:05:00Z manolo $".
 //

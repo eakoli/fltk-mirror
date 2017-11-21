@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Text_Display.cxx 12170 2017-02-04 21:56:38Z AlbrechtS $"
+// "$Id: Fl_Text_Display.cxx 12544 2017-11-05 15:47:17Z manolo $"
 //
 // Copyright 2001-2017 by Bill Spitzak and others.
 // Original code Copyright Mark Edel.  Permission to distribute under
@@ -127,8 +127,8 @@ Fl_Text_Display::Fl_Text_Display(int X, int Y, int W, int H, const char* l)
 
   end();
 
-  scrollbar_width(Fl::scrollbar_size());
-  scrollbar_align(FL_ALIGN_BOTTOM_RIGHT);
+  scrollbar_width_ = 0;		// 0: uses Fl::scrollbar_size()
+  scrollbar_align_ = FL_ALIGN_BOTTOM_RIGHT;
 
   mCursorOn = 0;
   mCursorPos = 0;
@@ -212,7 +212,7 @@ Fl_Text_Display::~Fl_Text_Display() {
 void Fl_Text_Display::linenumber_width(int width) {
   if (width < 0) return;
   mLineNumWidth = width;
-  resize(x(), y(), w(), h());	// triggers code to recalculate line#s
+  recalc_display();		// recalc line#s	// resize(x(), y(), w(), h());
 }
 
 /**
@@ -365,7 +365,7 @@ void Fl_Text_Display::buffer( Fl_Text_Buffer *buf ) {
   }
 
   /* Resize the widget to update the screen... */
-  resize(x(), y(), w(), h());
+  recalc_display();		// resize(x(), y(), w(), h());
 }
 
 
@@ -431,8 +431,6 @@ int Fl_Text_Display::longest_vline() const {
   return longest;
 }
 
-
-
 /**
  \brief Change the size of the displayed text area.
 
@@ -456,18 +454,27 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
 #endif // DEBUG2
 
   Fl_Widget::resize(X,Y,W,H);
+  mColumnScale = 0; // force recomputation of the width of a column when display is rescaled
+  recalc_display();
+}
+
+/**
+ Recalculate the display's visible lines and scrollbar sizes.
+ */
+void Fl_Text_Display::recalc_display() {
   if (!buffer()) return;
 
   // did we have scrollbars initially?
   unsigned int hscrollbarvisible = mHScrollBar->visible();
   unsigned int vscrollbarvisible = mVScrollBar->visible();
+  int scrollsize = scrollbar_width_ ? scrollbar_width_ : Fl::scrollbar_size();
 
   int oldTAWidth = text_area.w;
 
-  X += Fl::box_dx(box());
-  Y += Fl::box_dy(box());
-  W -= Fl::box_dw(box());
-  H -= Fl::box_dh(box());
+  int X = x() + Fl::box_dx(box());
+  int Y = y() + Fl::box_dy(box());
+  int W = w() - Fl::box_dw(box());
+  int H = h() - Fl::box_dh(box());
 
   text_area.x = X + LEFT_MARGIN + mLineNumWidth;
   text_area.y = Y + TOP_MARGIN;
@@ -492,6 +499,8 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
   // for large buffers that suffer from slow calculations of character width
   // to determine line wrapping.
 
+  oldTAWidth = -1; // force _first_ calculation in loop (STR #3412)
+
   if (mContinuousWrap && !mWrapMarginPix) {
 
     int nvlines = (text_area.h + mMaxsize - 1) / mMaxsize;
@@ -499,7 +508,7 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
     if (nvlines < 1) nvlines = 1;
     if (nlines >= nvlines-1) {
       mVScrollBar->set_visible(); // we need a vertical scrollbar
-      text_area.w -= scrollbar_width();
+      text_area.w -= scrollsize;
     }
   }
 
@@ -545,15 +554,15 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
     calc_last_char();
 
     // figure the scrollbars
-    if (scrollbar_width()) {
+    if (scrollsize) {
 
       /* Decide if the vertical scrollbar needs to be visible */
       if (!mVScrollBar->visible() &&
 	  scrollbar_align() & (FL_ALIGN_LEFT|FL_ALIGN_RIGHT) &&
-	  mNBufferLines >= mNVisibleLines-1)
+	  mNBufferLines >= mNVisibleLines-(mContinuousWrap?0:1))
       {
 	mVScrollBar->set_visible();
-	text_area.w -= scrollbar_width();
+	text_area.w -= scrollsize;
 	again = 1;
       }
 
@@ -587,7 +596,7 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
         char wrap_at_bounds = mContinuousWrap && (mWrapMarginPix<text_area.w);
         if (!wrap_at_bounds) {
           mHScrollBar->set_visible();
-          text_area.h -= scrollbar_width();
+          text_area.h -= scrollsize;
           again = 1; // loop again to see if we now need vert. & recalc sizes
         }
       }
@@ -598,28 +607,28 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
   // Note: width and height have been calculated above.
   text_area.x = X + mLineNumWidth + LEFT_MARGIN;
   if (mVScrollBar->visible() && scrollbar_align() & FL_ALIGN_LEFT)
-    text_area.x += scrollbar_width();
+    text_area.x += scrollsize;
 
   text_area.y = Y + TOP_MARGIN;
   if (mHScrollBar->visible() &&
       scrollbar_align() & FL_ALIGN_TOP)
-    text_area.y += scrollbar_width();
+    text_area.y += scrollsize;
 
   // position and resize scrollbars
   if (mVScrollBar->visible()) {
     if (scrollbar_align() & FL_ALIGN_LEFT) {
 #ifdef LINENUM_LEFT_OF_VSCROLL
-      mVScrollBar->resize(text_area.x - LEFT_MARGIN - scrollbar_width(),
+      mVScrollBar->resize(text_area.x - LEFT_MARGIN - scrollsize,
 #else
       mVScrollBar->resize(X,
 #endif
 			  text_area.y - TOP_MARGIN,
-			  scrollbar_width(),
+			  scrollsize,
 			  text_area.h + TOP_MARGIN + BOTTOM_MARGIN);
     } else {
-      mVScrollBar->resize(X+W-scrollbar_width(),
+      mVScrollBar->resize(X+W-scrollsize,
 			  text_area.y - TOP_MARGIN,
-			  scrollbar_width(),
+			  scrollsize,
 			  text_area.h + TOP_MARGIN + BOTTOM_MARGIN);
     }
   }
@@ -629,12 +638,12 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
       mHScrollBar->resize(text_area.x - LEFT_MARGIN,
 			  Y,
 			  text_area.w + LEFT_MARGIN + RIGHT_MARGIN,
-			  scrollbar_width());
+			  scrollsize);
     } else {
       mHScrollBar->resize(text_area.x - LEFT_MARGIN,
-			  Y + H - scrollbar_width(),
+			  Y + H - scrollsize,
 			  text_area.w + LEFT_MARGIN + RIGHT_MARGIN,
-			  scrollbar_width());
+			  scrollsize);
     }
   }
 
@@ -676,7 +685,6 @@ void Fl_Text_Display::resize(int X, int Y, int W, int H) {
   update_v_scrollbar();
   update_h_scrollbar();
 }
-
 
 
 /**
@@ -939,7 +947,7 @@ void Fl_Text_Display::wrap_mode(int wrap, int wrapMargin) {
     mAbsTopLineNum = 1;		// changed from 0 to 1 -- LZA / STR#2621
   }
 
-  resize(x(), y(), w(), h());
+  recalc_display();		// resize(x(), y(), w(), h());
 }
 
 
@@ -1248,7 +1256,7 @@ void Fl_Text_Display::display_insert() {
  */
 void Fl_Text_Display::show_insert_position() {
   display_insert_position_hint = 1;
-  resize(x(), y(), w(), h());
+  recalc_display();		// resize(x(), y(), w(), h());
 }
 
 
@@ -1922,7 +1930,7 @@ int Fl_Text_Display::position_to_line( int pos, int *lineNum ) const {
   \li return the width of a text range in pixels
   \li return the index of a character that is at a pixel position
 
- \param[in] mode DRAW_LINE, GET_WIDTH, FIND_INDEX, or FIND_INDEX_FROM_ZERO
+ \param[in] mode DRAW_LINE, GET_WIDTH, FIND_INDEX, FIND_INDEX_FROM_ZERO, or FIND_CURSOR_INDEX
  \param[in] lineStartPos index of first character
  \param[in] lineLen size of string in bytes
  \param[in] leftChar, rightChar
@@ -1947,13 +1955,21 @@ int Fl_Text_Display::handle_vline(
 
   // FIXME: we need to allow two modes for FIND_INDEX: one on the edge of the
   // FIXME: character for selection, and one on the character center for cursors.
-  int i, X, startX, startIndex, style, charStyle;
+  int i, X, startIndex, style, charStyle;
   char *lineStr;
+  double startX;
 
   if ( lineStartPos == -1 ) {
     lineStr = NULL;
   } else {
     lineStr = mBuffer->text_range( lineStartPos, lineStartPos + lineLen );
+  }
+
+  // STR #2788
+  int cursor_pos = 0;
+  if (mode==FIND_CURSOR_INDEX) {
+    mode = FIND_INDEX;
+    cursor_pos = 1;
   }
 
   if (mode==GET_WIDTH) {
@@ -1990,27 +2006,29 @@ int Fl_Text_Display::handle_vline(
     charStyle = position_style(lineStartPos, lineLen, i);
     if (charStyle!=style || currChar=='\t' || prevChar=='\t') {
       // draw a segment whenever the style changes or a Tab is found
-      int w = 0;
+      double w = 0;
       if (prevChar=='\t') {
         // draw a single Tab space
-        int tab = (int)col_to_x(mBuffer->tab_distance());
-        int xAbs = (mode==GET_WIDTH) ? startX : startX+mHorizOffset-text_area.x;
-        w = (((xAbs/tab)+1)*tab) - xAbs;
+        double tab = col_to_x(mBuffer->tab_distance());
+        double xAbs = (mode==GET_WIDTH) ? startX : startX+mHorizOffset-text_area.x;
+        w = ((int(xAbs/tab)+1)*tab) - xAbs;
         if (mode==DRAW_LINE)
           draw_string( style|BG_ONLY_MASK, startX, Y, startX+w, 0, 0 );
         if (mode==FIND_INDEX && startX+w>rightClip) {
           // find x pos inside block
           free(lineStr);
+          if (cursor_pos && (startX+w/2<rightClip))  // STR #2788
+            return lineStartPos + startIndex + len;  // STR #2788
           return lineStartPos + startIndex;
         }
       } else {
         // draw a text segment
-        w = int( string_width( lineStr+startIndex, i-startIndex, style ) );
+        w = string_width( lineStr+startIndex, i-startIndex, style );
         if (mode==DRAW_LINE)
           draw_string( style, startX, Y, startX+w, lineStr+startIndex, i-startIndex );
         if (mode==FIND_INDEX && startX+w>rightClip) {
           // find x pos inside block
-          int di = find_x(lineStr+startIndex, i-startIndex, style, rightClip-startX);
+	  int di = find_x(lineStr+startIndex, i-startIndex, style, -(rightClip-startX)); // STR #2788
           free(lineStr);
           IS_UTF8_ALIGNED2(buffer(), (lineStartPos+startIndex+di))
           return lineStartPos + startIndex + di;
@@ -2026,23 +2044,25 @@ int Fl_Text_Display::handle_vline(
   int w = 0;
   if (currChar=='\t') {
     // draw a single Tab space
-    int tab = (int)col_to_x(mBuffer->tab_distance());
-    int xAbs = (mode==GET_WIDTH) ? startX : startX+mHorizOffset-text_area.x;
-    w = (((xAbs/tab)+1)*tab) - xAbs;
+    double tab = col_to_x(mBuffer->tab_distance());
+    double xAbs = (mode==GET_WIDTH) ? startX : startX+mHorizOffset-text_area.x;
+    w = ((int(xAbs/tab)+1)*tab) - xAbs;
     if (mode==DRAW_LINE)
       draw_string( style|BG_ONLY_MASK, startX, Y, startX+w, 0, 0 );
     if (mode==FIND_INDEX) {
       // find x pos inside block
       free(lineStr);
+      if (cursor_pos) // STR #2788
+        return lineStartPos + startIndex + ( rightClip-startX>w/2 ? 1 : 0 ); // STR #2788
       return lineStartPos + startIndex + ( rightClip-startX>w ? 1 : 0 );
     }
   } else {
-    w = int( string_width( lineStr+startIndex, i-startIndex, style ) );
+    w = string_width( lineStr+startIndex, i-startIndex, style );
     if (mode==DRAW_LINE)
       draw_string( style, startX, Y, startX+w, lineStr+startIndex, i-startIndex );
     if (mode==FIND_INDEX) {
       // find x pos inside block
-      int di = find_x(lineStr+startIndex, i-startIndex, style, rightClip-startX);
+      int di = find_x(lineStr+startIndex, i-startIndex, style, -(rightClip-startX)); // STR #2788
       free(lineStr);
       IS_UTF8_ALIGNED2(buffer(), (lineStartPos+startIndex+di))
       return lineStartPos + startIndex + di;
@@ -2066,24 +2086,31 @@ int Fl_Text_Display::handle_vline(
 
 
 /**
- \brief Find the index of the character that lies at the given x position.
+ \brief Find the index of the character that lies at the given x position / closest cursor position.
 
  \param s UTF-8 text string
  \param len length of string
  \param style index into style lookup table
- \param x position in pixels
+ \param x position in pixels - negative returns closest cursor position
  \return index into buffer
  */
 int Fl_Text_Display::find_x(const char *s, int len, int style, int x) const {
   IS_UTF8_ALIGNED(s)
 
+  int cursor_pos = x<0; // STR #2788
+  x = x<0 ? -x : x;     // STR #2788
+
   // TODO: use binary search which may be quicker.
   int i = 0;
+  int last_w = 0;       // STR #2788
   while (i<len) {
     int cl = fl_utf8len1(s[i]);
     int w = int( string_width(s, i+cl, style) );
-    if (w>x)
+    if (w>x) {
+      if (cursor_pos && (w-x < x-last_w)) return i+cl; // STR #2788
       return i;
+    }
+    last_w = w;        // STR #2788
     i += cl;
   }
   return len;
@@ -2496,7 +2523,8 @@ int Fl_Text_Display::xy_to_position( int X, int Y, int posType ) const {
   /* Get the line text and its length */
   lineLen = vline_length( visLineNum );
 
-  return handle_vline(FIND_INDEX,
+  int mode = (posType == CURSOR_POS) ? FIND_CURSOR_INDEX : FIND_INDEX; // STR #2788
+  return handle_vline(mode,
                       lineStart, lineLen, 0, 0,
                       0, 0,
                       text_area.x, X);
@@ -2796,7 +2824,7 @@ void Fl_Text_Display::calc_last_char() {
 void Fl_Text_Display::scroll(int topLineNum, int horizOffset) {
   mTopLineNumHint = topLineNum;
   mHorizOffsetHint = horizOffset;
-  resize(x(), y(), w(), h());
+  recalc_display();	// resize(x(), y(), w(), h());
 }
 
 
@@ -2852,7 +2880,7 @@ void Fl_Text_Display::update_v_scrollbar() {
 	 mTopLineNum, mNVisibleLines, mNBufferLines);
 #endif // DEBUG
 
-  mVScrollBar->value(mTopLineNum, mNVisibleLines, 1, mNBufferLines+2);
+  mVScrollBar->value(mTopLineNum, mNVisibleLines, 1, mNBufferLines+1+(mContinuousWrap?0:1));
   mVScrollBar->linesize(3);
 }
 
@@ -3636,8 +3664,12 @@ void Fl_Text_Display::draw(void) {
   // background color -- change if inactive
   Fl_Color bgcolor = active_r() ? color() : fl_inactive(color());
 
+  // scrollbar size
+  int scrollsize = scrollbar_width_ ? scrollbar_width_ : Fl::scrollbar_size();
+
   // draw the non-text, non-scrollbar areas.
   if (damage() & FL_DAMAGE_ALL) {
+    recalc_display();
     //    printf("drawing all (box = %d)\n", box());
     if (Fl_Surface_Device::surface() != Fl_Display_Device::display_device()) {
       // if to printer, draw the background
@@ -3648,9 +3680,9 @@ void Fl_Text_Display::draw(void) {
     draw_box(box(), x(), y(), W, H, bgcolor);
 
     if (mHScrollBar->visible())
-      W -= scrollbar_width();
+      W -= scrollsize;
     if (mVScrollBar->visible())
-      H -= scrollbar_width();
+      H -= scrollsize;
 
     // left margin
     fl_rectf(text_area.x-LEFT_MARGIN, text_area.y-TOP_MARGIN,
@@ -4075,5 +4107,5 @@ double Fl_Text_Display::col_to_x(double col) const
 
 
 //
-// End of "$Id: Fl_Text_Display.cxx 12170 2017-02-04 21:56:38Z AlbrechtS $".
+// End of "$Id: Fl_Text_Display.cxx 12544 2017-11-05 15:47:17Z manolo $".
 //

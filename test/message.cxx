@@ -1,5 +1,5 @@
 //
-// "$Id: message.cxx 8864 2011-07-19 04:49:30Z greg.ercolano $"
+// "$Id: message.cxx 12482 2017-10-06 23:30:07Z greg.ercolano $"
 //
 // Message test program for the Fast Light Tool Kit (FLTK).
 //
@@ -29,15 +29,14 @@ int main(int argc, char **argv) {
   fl_message("Spelling check sucessful, %d errors found with %g%% confidence",
 	     1002, 100*(15/77.0));
 
-  fl_alert(
-		"Quantum fluctuations in the space-time continuum detected,\n"
-	  "you have %g seconds to comply.\n\n"
-		"\"In physics, spacetime is any mathematical model that combines\n"
-		"space and time into a single construct called the space-time\n"
-		"continuum. Spacetime is usually interpreted with space being\n"
-		"three-dimensional and time playing the role of the\n"
-		"fourth dimension.\" - Wikipedia",
-		10.0);
+  fl_alert("Quantum fluctuations in the space-time continuum detected,\n"
+	   "you have %g seconds to comply.\n\n"
+           "\"In physics, spacetime is any mathematical model that combines\n"
+           "space and time into a single construct called the space-time\n"
+           "continuum. Spacetime is usually interpreted with space being\n"
+           "three-dimensional and time playing the role of the\n"
+           "fourth dimension.\" - Wikipedia",
+           10.0);
 
   printf("fl_choice returned %d\n",
     fl_choice("Do you really want to %s?", "No", "Yes", 0L, "continue"));
@@ -57,5 +56,5 @@ int main(int argc, char **argv) {
 }
 
 //
-// End of "$Id: message.cxx 8864 2011-07-19 04:49:30Z greg.ercolano $".
+// End of "$Id: message.cxx 12482 2017-10-06 23:30:07Z greg.ercolano $".
 //

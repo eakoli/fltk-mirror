@@ -1,9 +1,10 @@
 //
-// "$Id: file_chooser.cxx 12014 2016-10-06 08:55:22Z manolo $"
+// "$Id: file_chooser.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $"
 //
 // File chooser test program.
 //
 // Copyright 1999-2010 by Michael Sweet.
+// Copyright 2011-2017 by Bill Spitzak and others.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -40,8 +41,12 @@
 #include <FL/Fl_PNM_Image.H>
 #include <FL/Fl_Light_Button.H>
 #include <FL/Fl_Double_Window.H>
+#include <FL/Fl_Simple_Terminal.H>
 #include <string.h>
 
+#define TERMINAL_HEIGHT 120
+#define TERMINAL_GREEN  "\033[32m"
+#define TERMINAL_NORMAL "\033[0m"
 
 //
 // Globals...
@@ -51,6 +56,7 @@ Fl_Input		*filter;
 Fl_File_Browser		*files;
 Fl_File_Chooser		*fc;
 Fl_Shared_Image		*image = 0;
+Fl_Simple_Terminal	*tty = 0;
 
 // for choosing extra groups
 Fl_Choice *ch_extra;
@@ -100,7 +106,10 @@ main(int  argc,		// I - Number of command-line arguments
   Fl_Shared_Image::add_handler(ps_check);
 
   // Make the main window...
-  window = new Fl_Double_Window(400, 215, "File Chooser Test");
+  window = new Fl_Double_Window(400, 215+TERMINAL_HEIGHT, "File Chooser Test");
+
+  tty = new Fl_Simple_Terminal(0,215,window->w(),TERMINAL_HEIGHT);
+  tty->ansi(true);
 
   filter = new Fl_Input(50, 10, 315, 25, "Filter:");
   // Process standard arguments and find filter argument if present
@@ -220,11 +229,11 @@ fc_callback(Fl_File_Chooser *fc,	// I - File chooser
   const char		*filename;	// Current filename
 
 
-  printf("fc_callback(fc = %p, data = %p)\n", fc, data);
+  tty->printf("fc_callback(fc = %p, data = %p)\n", fc, data);
 
   filename = fc->value();
 
-  printf("    filename = \"%s\"\n", filename ? filename : "(null)");
+  tty->printf("    filename = \"%s\"\n", filename ? filename : "(null)");
 }
 
 
@@ -256,7 +265,7 @@ pdf_check(const char *name,	// I - Name of file
   if (memcmp(header, "%PDF", 4) != 0)
     return 0;
 
-  home = getenv("HOME");
+  home = fl_getenv("HOME");
   sprintf(preview, "%s/.preview.ppm", home ? home : "");
 
   sprintf(command,
@@ -364,6 +373,8 @@ show_callback(void)
       if (!fc->value(i))
         break;
 
+      tty->printf("%d/%d) %sPicked: '%s'%s\n", i, count, TERMINAL_GREEN, fc->value(i), TERMINAL_NORMAL);
+
       fl_filename_relative(relative, sizeof(relative), fc->value(i));
 
       files->add(relative,
@@ -376,5 +387,5 @@ show_callback(void)
 
 
 //
-// End of "$Id: file_chooser.cxx 12014 2016-10-06 08:55:22Z manolo $".
+// End of "$Id: file_chooser.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $".
 //

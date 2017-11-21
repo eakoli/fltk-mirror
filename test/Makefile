@@ -1,5 +1,5 @@
 #
-# "$Id: Makefile 12171 2017-02-08 02:06:52Z AlbrechtS $"
+# "$Id: Makefile 12506 2017-10-17 00:28:56Z greg.ercolano $"
 #
 # Test/example program makefile for the Fast Light Tool Kit (FLTK).
 #
@@ -286,7 +286,7 @@ unittests$(EXEEXT): unittests.o
 
 unittests.o: unittests.cxx unittest_about.cxx unittest_points.cxx unittest_lines.cxx unittest_circles.cxx \
 	unittest_rects.cxx unittest_text.cxx unittest_symbol.cxx unittest_viewport.cxx unittest_images.cxx \
-	unittest_schemes.cxx
+	unittest_schemes.cxx unittest_simple_terminal.cxx
 
 adjuster$(EXEEXT): adjuster.o
 
@@ -546,5 +546,5 @@ cairo_test$(EXEEXT): cairo_test.o
 	$(OSX_ONLY) ../fltk-config --post $@
 
 #
-# End of "$Id: Makefile 12171 2017-02-08 02:06:52Z AlbrechtS $".
+# End of "$Id: Makefile 12506 2017-10-17 00:28:56Z greg.ercolano $".
 #

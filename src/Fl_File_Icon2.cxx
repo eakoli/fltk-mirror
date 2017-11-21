@@ -1,11 +1,12 @@
 //
-// "$Id: Fl_File_Icon2.cxx 12029 2016-10-14 16:35:52Z AlbrechtS $"
+// "$Id: Fl_File_Icon2.cxx 12492 2017-10-13 14:58:30Z AlbrechtS $"
 //
 // Fl_File_Icon system icon routines.
 //
 // KDE icon code donated by Maarten De Boer.
 //
 // Copyright 1999-2010 by Michael Sweet.
+// Copyright 2011-2017 by Bill Spitzak and others.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -653,7 +654,7 @@ Fl_File_Icon::load_system_icons(void) {
 
     if (!kdedir) {
       // Figure out where KDE is installed...
-      if ((kdedir = getenv("KDEDIR")) == NULL) {
+      if ((kdedir = fl_getenv("KDEDIR")) == NULL) {
         if (!fl_access("/opt/kde", F_OK)) kdedir = "/opt/kde";
 	else if (!fl_access("/usr/local/share/mimelnk", F_OK)) kdedir = "/usr/local";
         else kdedir = "/usr";
@@ -991,5 +992,5 @@ get_kde_val(char       *str,
 
 
 //
-// End of "$Id: Fl_File_Icon2.cxx 12029 2016-10-14 16:35:52Z AlbrechtS $".
+// End of "$Id: Fl_File_Icon2.cxx 12492 2017-10-13 14:58:30Z AlbrechtS $".
 //

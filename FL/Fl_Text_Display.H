@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Text_Display.H 12474 2017-10-03 05:15:10Z greg.ercolano $"
+// "$Id: Fl_Text_Display.H 12538 2017-11-02 21:14:40Z greg.ercolano $"
 //
 // Header file for Fl_Text_Display class.
 //
@@ -24,6 +24,7 @@
 #ifndef FL_TEXT_DISPLAY_H
 #define FL_TEXT_DISPLAY_H
 
+#include <FL/Fl.H>		// Fl::scrollbar_size()
 #include "fl_draw.H"
 #include "Fl_Group.H"
 #include "Fl_Widget.H"
@@ -222,18 +223,65 @@ public:
    */
   void cursor_color(Fl_Color n) {mCursor_color = n;}
   
-  /**   
-   Gets the width/height of the scrollbars.
-   \return width of scrollbars
-   */
-  int scrollbar_width() const { return scrollbar_width_; }
+  /**
+    This method has been deprecated, existing for backwards compatibility only.
+    Use scrollbar_size() instead.
+    This method returns the global value Fl::scrollbar_size() unless
+    a specific scrollbar_width_ has been set.
+    \todo This method should eventually be removed.
+  */
+  int scrollbar_width() const {
+      return scrollbar_width_ ? scrollbar_width_ : Fl::scrollbar_size();
+  }
+
+  /**
+    This method has been deprecated, existing for backwards compatibility only.
+    Use scrollbar_size(int) instead.
+    This method sets the global Fl::scrollbar_size(), and forces this
+    instance of the widget to use it.
+    \todo This method should eventually be removed
+  */
+  void scrollbar_width(int width) {
+      Fl::scrollbar_size(width);
+      scrollbar_width_ = 0;
+  }
   
   /**
-   Sets the width/height of the scrollbars.
-   \param W width of scrollbars
-   */
-  void scrollbar_width(int W) { scrollbar_width_ = W; }
+    Gets the current size of the scrollbars' troughs, in pixels.
+
+    If this value is zero (default), this widget will use the 
+    Fl::scrollbar_size() value as the scrollbar's width.
   
+    \returns Scrollbar size in pixels, or 0 if the global Fl::scrollbar_size() is being used.
+    \see Fl::scrollbar_size(int)
+  */
+  int scrollbar_size() const {
+      return(scrollbar_width_);
+  }
+
+  /**
+    Sets the pixel size of the scrollbars' troughs to \p newSize, in pixels.
+
+    Normally you should not need this method, and should use
+    Fl::scrollbar_size(int) instead to manage the size of ALL 
+    your widgets' scrollbars. This ensures your application 
+    has a consistent UI, is the default behavior, and is normally
+    what you want.
+
+    Only use THIS method if you really need to override the global
+    scrollbar size. The need for this should be rare.
+    
+    Setting \p newSize to the special value of 0 causes the widget to
+    track the global Fl::scrollbar_size(), which is the default.
+    
+    \param[in] newSize Sets the scrollbar size in pixels.\n
+                    If 0 (default), scrollbar size tracks the global Fl::scrollbar_size()
+    \see Fl::scrollbar_size()
+  */
+  void scrollbar_size(int newSize) {
+      scrollbar_width_ = newSize;
+  }   
+
   /**
    Gets the scrollbar alignment type.
    \return scrollbar alignment
@@ -293,7 +341,7 @@ public:
    Sets the default font used when drawing text in the widget.
    \param s default text font face
    */
-  void textfont(Fl_Font s) {textfont_ = s; mColumnScale = 0;}
+  void textfont(Fl_Font s) {textfont_ = s; mColumnScale = 0; }
   
   /**
    Gets the default size of text in the widget.
@@ -305,7 +353,7 @@ public:
    Sets the default size of text in the widget.
    \param s new text size
    */
-  void textsize(Fl_Fontsize s) {textsize_ = s; mColumnScale = 0;}
+  void textsize(Fl_Fontsize s) {textsize_ = s; mColumnScale = 0; }
   
   /**
    Gets the default color of text in the widget.
@@ -323,6 +371,7 @@ public:
   int wrapped_row(int row) const;
   void wrap_mode(int wrap, int wrap_margin);
   
+  virtual void recalc_display();
   virtual void resize(int X, int Y, int W, int H);
 
   /**
@@ -378,7 +427,8 @@ protected:
     DRAW_LINE, 
     FIND_INDEX,
     FIND_INDEX_FROM_ZERO,
-    GET_WIDTH 
+    GET_WIDTH,
+    FIND_CURSOR_INDEX	// STR #2788
   };
   
   int handle_vline(int mode, 
@@ -456,7 +506,8 @@ protected:
                                  the number of redraw calls */
   int mCursorStyle;             /* One of enum cursorStyles above */
   int mCursorPreferredXPos;     /* Pixel position for vert. cursor movement */
-  int mNVisibleLines;           /* # of visible (displayed) lines */
+  int mNVisibleLines;           /* # of visible (displayed) lines. This is
+                                   also the size of the mLineStarts[] array. */
   int mNBufferLines;            /* # of newlines in the buffer */
   Fl_Text_Buffer* mBuffer;      /* Contains text to be displayed */
   Fl_Text_Buffer* mStyleBuffer; /* Optional parallel buffer containing
@@ -468,7 +519,16 @@ protected:
   int mContinuousWrap;          /* Wrap long lines when displaying */
   int mWrapMarginPix; 	    	/* Margin in # of pixels for
                                  wrapping in continuousWrap mode */
-  int* mLineStarts;
+  int* mLineStarts;             /* Array of the size mNVisibleLines.
+                                   This array only keeps track of lines
+                                   within the display area. Each entry
+                                   contains the starting character offset
+                                   (from the beginning of the text buffer)
+                                   for each /visible/ line.
+                                   If wrap enabled, points to the beginning
+                                   of each wrap. So a long line wrapping
+                                   into 3 separate lines in the display
+                                   will take up 3 separate array entries. */
   int mTopLineNum;              /* Line number of top displayed line
                                  of file (first line of file is 1) */
   int mAbsTopLineNum;           /* In continuous wrap mode, the line
@@ -510,7 +570,7 @@ protected:
   
   Fl_Scrollbar* mHScrollBar;
   Fl_Scrollbar* mVScrollBar;
-  int scrollbar_width_;
+  int scrollbar_width_;		// size of scrollbar trough (behavior changed in 1.4)
   Fl_Align scrollbar_align_;
   int dragPos, dragType, dragging;
   int display_insert_position_hint;
@@ -537,5 +597,5 @@ protected:
 #endif
 
 //
-// End of "$Id: Fl_Text_Display.H 12474 2017-10-03 05:15:10Z greg.ercolano $".
+// End of "$Id: Fl_Text_Display.H 12538 2017-11-02 21:14:40Z greg.ercolano $".
 //

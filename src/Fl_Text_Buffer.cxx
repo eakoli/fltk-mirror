@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Text_Buffer.cxx 12356 2017-07-26 12:32:13Z AlbrechtS $"
+// "$Id: Fl_Text_Buffer.cxx 12483 2017-10-08 20:38:36Z greg.ercolano $"
 //
 // Copyright 2001-2017 by Bill Spitzak and others.
 // Original code Copyright Mark Edel.  Permission to distribute under
@@ -289,6 +289,50 @@ void Fl_Text_Buffer::insert(int pos, const char *text)
   mCursorPosHint = pos + nInserted;
   IS_UTF8_ALIGNED2(this, (mCursorPosHint))
   call_modify_callbacks(pos, 0, nInserted, 0, NULL);
+}
+
+
+/**
+ Can be used by subclasses that need their own printf() style functionality.
+ e.g. Fl_Simple_Terminal::printf() would wrap around this method.
+ \note The expanded string is currently limited to 1024 characters. 
+ \param[in] fmt is a printf format string for the message text.
+ \param[in] ap is a va_list created by va_start() and closed with va_end(),
+               which the caller is responsible for handling.
+*/
+void Fl_Text_Buffer::vprintf(const char *fmt, va_list ap) {
+  char buffer[1024];    // XXX: 1024 should be user configurable
+  ::vsnprintf(buffer, 1024, fmt, ap);
+  buffer[1024-1] = 0;	// XXX: MICROSOFT
+  append(buffer);
+}
+
+
+/**
+ Appends printf formatted messages to the end of the buffer.
+ Example:
+ \code
+ #include <FL/Fl_Text_Display.H>
+ int main(..) {
+     :
+     // Create a text display widget and assign it a text buffer
+     Fl_Text_Display *tdsp = new Fl_Text_Display(..);
+     Fl_Text_Buffer *tbuf = new Fl_Text_Buffer();
+     tdsp->buffer(tbuf);
+     :
+     // Append three lines of formatted text to the buffer
+     tbuf->printf("The current date is: %s.\nThe time is: %s\n", date_str, time_str);
+     tbuf->printf("The current PID is %ld.\n", (long)getpid());
+     :
+ \endcode
+ \note The expanded string is currently limited to 1024 characters. 
+ \param[in] fmt is a printf format string for the message text.
+*/
+void Fl_Text_Buffer::printf(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  Fl_Text_Buffer::vprintf(fmt,ap);
+  va_end(ap);
 }
 
 
@@ -1852,5 +1896,5 @@ int Fl_Text_Buffer::utf8_align(int pos) const
 }
 
 //
-// End of "$Id: Fl_Text_Buffer.cxx 12356 2017-07-26 12:32:13Z AlbrechtS $".
+// End of "$Id: Fl_Text_Buffer.cxx 12483 2017-10-08 20:38:36Z greg.ercolano $".
 //

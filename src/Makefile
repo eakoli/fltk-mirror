@@ -1,5 +1,5 @@
 #
-# "$Id: Makefile 12413 2017-09-03 13:14:25Z manolo $"
+# "$Id: Makefile 12506 2017-10-17 00:28:56Z greg.ercolano $"
 #
 # Library Makefile for the Fast Light Tool Kit (FLTK).
 #
@@ -78,6 +78,7 @@ CPPFILES = \
 	Fl_Scroll.cxx \
 	Fl_Scrollbar.cxx \
 	Fl_Shared_Image.cxx \
+	Fl_Simple_Terminal.cxx \
 	Fl_Single_Window.cxx \
 	Fl_Slider.cxx \
 	Fl_Spinner.cxx \
@@ -920,5 +921,5 @@ uninstall:
 	fi
 
 #
-# End of "$Id: Makefile 12413 2017-09-03 13:14:25Z manolo $".
+# End of "$Id: Makefile 12506 2017-10-17 00:28:56Z greg.ercolano $".
 #

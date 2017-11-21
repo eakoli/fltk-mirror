@@ -1,9 +1,9 @@
 /*
- * "$Id: fl_utf8.h 12476 2017-10-04 12:21:46Z manolo $"
+ * "$Id: fl_utf8.h 12549 2017-11-10 12:56:00Z AlbrechtS $"
  *
  * Author: Jean-Marc Lienher ( http://oksid.ch )
  * Copyright 2000-2010 by O'ksi'D.
- * Copyright 2016 by Bill Spitzak and others.
+ * Copyright 2016-2017 by Bill Spitzak and others.
  *
  * This library is free software. Distribution and use rights are outlined in
  * the file "COPYING" which should have been included with this file.  If this
@@ -160,10 +160,13 @@ FL_EXPORT int fl_chmod(const char* f, int mode);
 FL_EXPORT int fl_access(const char* f, int mode);
 
 /* OD: Portable UTF-8 aware stat wrapper */
-FL_EXPORT int fl_stat( const char *path, struct stat *buffer );
+FL_EXPORT int fl_stat(const char *path, struct stat *buffer);
 
 /* OD: Portable UTF-8 aware getcwd wrapper */
-FL_EXPORT char* fl_getcwd( char *buf, int maxlen);
+FL_EXPORT char *fl_getcwd(char *buf, int len);
+
+/* Portable UTF-8 aware chdir wrapper */
+FL_EXPORT int fl_chdir(const char *path);
 
 /* OD: Portable UTF-8 aware fopen wrapper */
 FL_EXPORT FILE *fl_fopen(const char *f, const char *mode);
@@ -175,10 +178,12 @@ FL_EXPORT int fl_system(const char* f);
 FL_EXPORT int fl_execvp(const char *file, char *const *argv);
 
 /* OD: Portable UTF-8 aware open wrapper */
-FL_EXPORT int fl_open(const char* f, int o, ...);
+FL_EXPORT int fl_open(const char *fname, int oflags, ...);
+
+FL_EXPORT int fl_open_ext(const char *fname, int binary, int oflags, ...);
 
 /* OD: Portable UTF-8 aware unlink wrapper */
-FL_EXPORT int fl_unlink(const char *f);
+FL_EXPORT int fl_unlink(const char *fname);
 
 /* OD: Portable UTF-8 aware rmdir wrapper */
 FL_EXPORT int fl_rmdir(const char *f);
@@ -212,5 +217,5 @@ FL_EXPORT char fl_make_path( const char *path );
 #endif /* _HAVE_FL_UTF8_HDR_ */
 
 /*
- * End of "$Id: fl_utf8.h 12476 2017-10-04 12:21:46Z manolo $".
+ * End of "$Id: fl_utf8.h 12549 2017-11-10 12:56:00Z AlbrechtS $".
  */

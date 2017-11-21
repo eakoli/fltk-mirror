@@ -13,6 +13,7 @@ ALL = clipboard$(EXEEXT) \
       howto-drag-and-drop$(EXEEXT) \
       howto-menu-with-images$(EXEEXT) \
       howto-parse-args$(EXEEXT) \
+      howto-simple-svg$(EXEEXT) \
       howto-text-over-image-button$(EXEEXT) \
       menubar-add$(EXEEXT) \
       nativefilechooser-simple$(EXEEXT) \
@@ -26,6 +27,7 @@ ALL = clipboard$(EXEEXT) \
       table-spreadsheet-with-keyboard-nav$(EXEEXT) \
       table-with-keynav$(EXEEXT) \
       tabs-simple$(EXEEXT) \
+      simple-terminal$(EXEEXT) \
       textdisplay-with-colors$(EXEEXT) \
       texteditor-simple$(EXEEXT) \
       tree-simple$(EXEEXT) \

@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_System_Driver.H 12476 2017-10-04 12:21:46Z manolo $"
+// "$Id: Fl_System_Driver.H 12549 2017-11-10 12:56:00Z AlbrechtS $"
 //
 // A base class for platform specific system calls
 // for the Fast Light Tool Kit (FLTK).
@@ -63,7 +63,7 @@ public:
   static const int fl_YValue;
   static const int fl_XNegative;
   static const int fl_YNegative;
-  
+
   // implement if the system adds unwanted program argument(s)
   virtual int single_arg(const char *arg) { return 0; }
   // implement if the system adds unwanted program argument pair(s)
@@ -81,12 +81,18 @@ public:
   static void fatal(const char* format, ...);
   // implement to set the default effect of Fl::error()
   virtual void fatal(const char* format, va_list args);
-  
+
   // implement these to support cross-platform file operations
   virtual char *utf2mbcs(const char *s) {return (char*)s;}
   virtual char *getenv(const char* v) {return NULL;}
   virtual int putenv(char* v) {return -1;}
   virtual int open(const char* f, int oflags, int pmode) {return -1;}
+
+  // Note: the default implementation ignores the 'binary' argument.
+  // Some platforms (notably Windows) may use this argument.
+  virtual int open_ext(const char* f, int binary, int oflags, int pmode) {
+    return this->open(f, oflags, pmode);
+  }
   virtual FILE *fopen(const char* f, const char *mode);
   virtual int system(const char* cmd) {return -1;}
   virtual int execvp(const char *file, char *const *argv) {return -1;}
@@ -94,12 +100,13 @@ public:
   virtual int access(const char* f, int mode) { return -1;}
   virtual int stat(const char* f, struct stat *b) { return -1;}
   virtual char *getcwd(char* b, int l) {return NULL;}
-  virtual int unlink(const char* f) {return -1;}
+  virtual int chdir(const char* path) {return -1;}
+  virtual int unlink(const char* fname) {return -1;}
   virtual int mkdir(const char* f, int mode) {return -1;}
   virtual int rmdir(const char* f) {return -1;}
   virtual int rename(const char* f, const char *n) {return -1;}
-  
-  // the default implementation of these utf8... functions should be enough 
+
+  // the default implementation of these utf8... functions should be enough
   virtual unsigned utf8towc(const char* src, unsigned srclen, wchar_t* dst, unsigned dstlen);
   virtual unsigned utf8fromwc(char* dst, unsigned dstlen, const wchar_t* src, unsigned srclen);
   virtual int utf8locale() {return 1;}
@@ -223,5 +230,5 @@ public:
 #endif // FL_SYSTEM_DRIVER_H
 
 //
-// End of "$Id: Fl_System_Driver.H 12476 2017-10-04 12:21:46Z manolo $".
+// End of "$Id: Fl_System_Driver.H 12549 2017-11-10 12:56:00Z AlbrechtS $".
 //

@@ -1,12 +1,12 @@
 //
-// "$Id: checkers.cxx 11246 2016-02-27 17:27:21Z AlbrechtS $"
+// "$Id: checkers.cxx 12492 2017-10-13 14:58:30Z AlbrechtS $"
 //
 // Checkers game for the Fast Light Tool Kit (FLTK).
 //
 // Hours of fun: the FLTK checkers game!
 // Based on a very old algorithm, but it still works!
 //
-// Copyright 1998-2010 by Bill Spitzak and others.
+// Copyright 1998-2017 by Bill Spitzak and others.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -1346,7 +1346,7 @@ int main(int argc, char **argv) {
     fprintf(stderr," -t : use VT100 display\n", Fl::help);
     exit(1);
   }
-  if (!getenv("DISPLAY")) terminal = 1;
+  if (!fl_getenv("DISPLAY")) terminal = 1;
   if (!terminal)
 #endif
 #ifdef FLTK
@@ -1358,5 +1358,5 @@ int main(int argc, char **argv) {
 }
 
 //
-// End of "$Id: checkers.cxx 11246 2016-02-27 17:27:21Z AlbrechtS $".
+// End of "$Id: checkers.cxx 12492 2017-10-13 14:58:30Z AlbrechtS $".
 //

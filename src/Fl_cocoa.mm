@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_cocoa.mm 12342 2017-07-20 09:25:49Z manolo $"
+// "$Id: Fl_cocoa.mm 12560 2017-11-13 14:47:49Z manolo $"
 //
 // MacOS-Cocoa specific code for the Fast Light Tool Kit (FLTK).
 //
@@ -62,7 +62,6 @@ extern "C" {
 #import <Cocoa/Cocoa.h>
 
 
-
 // #define DEBUG_SELECT		// UNCOMMENT FOR SELECT()/THREAD DEBUGGING
 #ifdef DEBUG_SELECT
 #include <stdio.h>		// testing
@@ -88,6 +87,7 @@ static void cocoaMouseHandler(NSEvent *theEvent);
 static void clipboard_check(void);
 static unsigned make_current_counts = 0; // if > 0, then Fl_Window::make_current() can be called only once
 static NSBitmapImageRep* rect_to_NSBitmapImageRep(Fl_Window *win, int x, int y, int w, int h);
+static void drain_dropped_files_list(void);
 
 int fl_mac_os_version = Fl_Darwin_System_Driver::calc_mac_os_version();		// the version number of the running Mac OS X (e.g., 100604 for 10.6.4)
 
@@ -114,6 +114,9 @@ static NSString *TIFF_pasteboard_type = (fl_mac_os_version >= 100600 ? NSPastebo
 static NSString *PDF_pasteboard_type = (fl_mac_os_version >= 100600 ? NSPasteboardTypePDF : NSPDFPboardType);
 static NSString *PICT_pasteboard_type = (fl_mac_os_version >= 100600 ? @"com.apple.pict" : NSPICTPboardType);
 static NSString *UTF8_pasteboard_type = (fl_mac_os_version >= 100600 ? NSPasteboardTypeString : NSStringPboardType);
+static bool in_nsapp_run = false; // true during execution of [NSApp run]
+static NSMutableArray *dropped_files_list = nil; // list of files dropped at app launch
+typedef void (*open_cb_f_type)(const char *);
 
 #if CONSOLIDATE_MOTION
 static Fl_Window* send_motion;
@@ -845,6 +848,9 @@ static int do_queued_events( double time = 0.0 )
 
 double Fl_Cocoa_Screen_Driver::wait(double time_to_wait)
 {
+  if (dropped_files_list) { // when the list of dropped files is not empty, open one and remove it from list
+    drain_dropped_files_list();
+  }
   Fl::run_checks();
   static int in_idle = 0;
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -1424,7 +1430,8 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
 - (BOOL)windowShouldClose:(id)fl
 {
   fl_lock_function();
-  Fl::handle( FL_CLOSE, [(FLWindow *)fl getFl_Window] ); // this might or might not close the window
+  Fl_Window *win = [(FLWindow *)fl getFl_Window];
+  if (win) Fl::handle(FL_CLOSE, win); // this might or might not close the window
   fl_unlock_function();
   // the system doesn't need to send [fl close] because FLTK does it when needed
   return NO; 
@@ -1456,10 +1463,11 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
 <NSApplicationDelegate>
 #endif
 {
-  void (*open_cb)(const char*);
   @public
+  open_cb_f_type open_cb;
   TSMDocumentID currentDoc;
 }
+- (void)applicationDidFinishLaunching:(NSNotification *)notification;
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender;
 - (void)applicationDidBecomeActive:(NSNotification *)notify;
 - (void)applicationDidChangeScreenParameters:(NSNotification *)aNotification;
@@ -1468,9 +1476,12 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
 - (void)applicationWillHide:(NSNotification *)notify;
 - (void)applicationWillUnhide:(NSNotification *)notify;
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
-- (void)open_cb:(void (*)(const char*))cb;
 @end
 @implementation FLAppDelegate
+- (void)applicationDidFinishLaunching:(NSNotification *)notification
+{
+    if (fl_mac_os_version >= 101300 && [NSApp isRunning]) [NSApp stop:nil];
+}
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender
 {
   fl_lock_function();
@@ -1615,10 +1626,16 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
 }
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
 {
+  if (fl_mac_os_version < 101300) {
   // without the next two statements, the opening of the 1st window is delayed by several seconds
-  // under Mac OS ≥ 10.8 when a file is dragged on the application icon
-  Fl_Window *firstw = Fl::first_window();
-  if (firstw) firstw->wait_for_expose();
+  // under 10.8 ≤ Mac OS < 10.13 when a file is dragged on the application icon
+    Fl_Window *firstw = Fl::first_window();
+    if (firstw) firstw->wait_for_expose();
+  } else if (in_nsapp_run) { // memorize all dropped filenames
+    if (!dropped_files_list) dropped_files_list = [[NSMutableArray alloc] initWithCapacity:1];
+    [dropped_files_list addObject:filename];
+    return YES;
+  }
   if (open_cb) {
     fl_lock_function();
     (*open_cb)([filename UTF8String]);
@@ -1627,10 +1644,6 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
     return YES;
   }
   return NO;
-}
-- (void)open_cb:(void (*)(const char*))cb
-{
-  open_cb = cb;
 }
 @end
 
@@ -1654,12 +1667,31 @@ static FLWindowDelegate *flwindowdelegate_instance = nil;
 }
 @end
 
+static void drain_dropped_files_list() {
+  open_cb_f_type open_cb = ((FLAppDelegate*)[NSApp delegate])->open_cb;
+  if (!open_cb) {
+    [dropped_files_list removeAllObjects];
+    [dropped_files_list release];
+    dropped_files_list = nil;
+    return;
+  }
+  NSString *s = (NSString*)[dropped_files_list objectAtIndex:0];
+  char *fname = strdup([s UTF8String]);
+  [dropped_files_list removeObjectAtIndex:0];
+  if ([dropped_files_list count] == 0) {
+    [dropped_files_list release];
+    dropped_files_list = nil;
+  }
+  open_cb(fname);
+  free(fname);
+}
+
 /*
  * Install an open documents event handler...
  */
 void Fl_Darwin_System_Driver::open_callback(void (*cb)(const char *)) {
   fl_open_display();
-  [(FLAppDelegate*)[NSApp delegate] open_cb:cb];
+  ((FLAppDelegate*)[NSApp delegate])->open_cb = cb;
 }
 
 @implementation FLApplication
@@ -1705,6 +1737,27 @@ void Fl_Darwin_System_Driver::open_callback(void (*cb)(const char *)) {
 }
 */
 
+static void foreground_and_activate_if_needed() {
+  if ([NSApp isActive]) return;
+  NSBundle *bundle = [NSBundle mainBundle];
+  if (bundle) {
+    NSString *exe = [[bundle executablePath] stringByStandardizingPath];
+    NSString *bpath = [bundle bundlePath];
+    NSString *exe_dir = [exe stringByDeletingLastPathComponent];
+    if ([bpath isEqualToString:exe] || [bpath isEqualToString:exe_dir]) bundle = nil;
+  }
+  if ( !bundle ) { // only transform the application type for unbundled apps
+    ProcessSerialNumber cur_psn = { 0, kCurrentProcess };
+    TransformProcessType(&cur_psn, kProcessTransformToForegroundApplication); // needs Mac OS 10.3
+    /* support of Mac OS 10.2 or earlier used this undocumented call instead
+     err = CPSEnableForegroundOperation(&cur_psn, 0x03, 0x3C, 0x2C, 0x1103);
+     */
+  }
+  [NSApp activateIgnoringOtherApps:YES];
+}
+
+// simpler way to activate application tested OK on MacOS 10.3 10.6 10.9 and 10.13
+
 void Fl_Cocoa_Screen_Driver::open_display_platform() {
   static char beenHereDoneThat = 0;
   if ( !beenHereDoneThat ) {
@@ -1716,7 +1769,15 @@ void Fl_Cocoa_Screen_Driver::open_display_platform() {
     localPool = [[NSAutoreleasePool alloc] init]; // never released
     FLAppDelegate *delegate = (fl_mac_os_version < 100500 ? [FLAppDelegateBefore10_5 alloc] : [FLAppDelegate alloc]);
     [(NSApplication*)NSApp setDelegate:[delegate init]];
-    if (need_new_nsapp) [NSApp finishLaunching];
+    if (need_new_nsapp) {
+      if (fl_mac_os_version >= 101300 ) {
+        foreground_and_activate_if_needed();
+        in_nsapp_run = true;
+        [NSApp run];
+        in_nsapp_run = false;
+      }
+      else [NSApp finishLaunching];
+    }
 
     // empty the event queue but keep system events for drag&drop of files at launch
     NSEvent *ign_event;
@@ -1726,45 +1787,7 @@ void Fl_Cocoa_Screen_Driver::open_display_platform() {
 					  dequeue:YES];
     while (ign_event);
     
-    // bring the application into foreground without a 'CARB' resource
-    bool i_am_in_front;
-    ProcessSerialNumber cur_psn = { 0, kCurrentProcess };
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
-    if (fl_mac_os_version >= 100600) {
-      i_am_in_front = [[NSRunningApplication currentApplication] isActive];
-    }
-    else
-#endif
-    {
-      Boolean same_psn;
-      ProcessSerialNumber front_psn;
-      //avoid compilation warnings triggered by GetFrontProcess() and SameProcess()
-      void* h = dlopen(NULL, RTLD_LAZY);
-      typedef OSErr (*GetFrontProcess_type)(ProcessSerialNumber*);
-      GetFrontProcess_type  GetFrontProcess_ = (GetFrontProcess_type)dlsym(h, "GetFrontProcess");
-      typedef OSErr (*SameProcess_type)(ProcessSerialNumber*, ProcessSerialNumber*, Boolean*);
-      SameProcess_type  SameProcess_ = (SameProcess_type)dlsym(h, "SameProcess");
-      i_am_in_front = (!GetFrontProcess_( &front_psn ) &&
-                       !SameProcess_( &front_psn, &cur_psn, &same_psn ) && same_psn );
-    }
-    if (!i_am_in_front) {
-      // only transform the application type for unbundled apps
-      NSBundle *bundle = [NSBundle mainBundle];
-      if (bundle) {
-        NSString *exe = [[bundle executablePath] stringByStandardizingPath];
-        NSString *bpath = [bundle bundlePath];
-        NSString *exe_dir = [exe stringByDeletingLastPathComponent];
-        if ([bpath isEqualToString:exe] || [bpath isEqualToString:exe_dir]) bundle = nil;
-      }
-      
-      if ( !bundle ) {
-        TransformProcessType(&cur_psn, kProcessTransformToForegroundApplication); // needs Mac OS 10.3
-        /* support of Mac OS 10.2 or earlier used this undocumented call instead
-         err = CPSEnableForegroundOperation(&cur_psn, 0x03, 0x3C, 0x2C, 0x1103);
-         */
-      }
-      [NSApp activateIgnoringOtherApps:YES];
-    }
+    foreground_and_activate_if_needed();
     if (![NSApp servicesMenu]) createAppleMenu();
     main_screen_height = [[[NSScreen screens] objectAtIndex:0] frame].size.height;
     [[NSNotificationCenter defaultCenter] addObserver:[FLWindowDelegate singleInstance]
@@ -2167,6 +2190,9 @@ static FLTextInputContext* fltextinputcontext_instance = nil;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 , NSTextInputClient
 #endif
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+,NSDraggingSource
+#endif
 > {
   BOOL in_key_event; // YES means keypress is being processed by handleEvent
   BOOL need_handle; // YES means Fl::handle(FL_KEYBOARD,) is needed after handleEvent processing
@@ -2208,6 +2234,9 @@ static FLTextInputContext* fltextinputcontext_instance = nil;
 - (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange;
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange;
 - (NSInteger)windowLevel;
+#endif
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context;
 #endif
 @end
 
@@ -2421,8 +2450,8 @@ static FLTextInputContext* fltextinputcontext_instance = nil;
   breakMacEventLoop();
   fl_unlock_function();
   // if the DND started in the same application, Fl::dnd() will not return until 
-  // the the DND operation is finished. The call below causes the drop indicator
-  // to be draw correctly (a full event handling would be better...)
+  // the DND operation is finished. The call below causes the drop indicator
+  // to be drawn correctly (a full event handling would be better...)
   Fl::flush();
   return ret ? NSDragOperationCopy : NSDragOperationNone;
 }
@@ -2707,6 +2736,14 @@ static FLTextInputContext* fltextinputcontext_instance = nil;
 )conversationIdentifier {
   return identifier;
 }
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context
+{
+  return NSDragOperationCopy;
+}
+#endif
+
 @end
 
 
@@ -3084,7 +3121,15 @@ void Fl_Cocoa_Window_Driver::size_range() {
 
 void Fl_Cocoa_Window_Driver::wait_for_expose()
 {
-  [fl_xid(pWindow) recursivelySendToSubwindows:@selector(waitForExpose)];
+    if (fl_mac_os_version < 101300) {
+        [fl_xid(pWindow) recursivelySendToSubwindows:@selector(waitForExpose)];
+    } else {
+      while (dropped_files_list) {
+        drain_dropped_files_list();
+      }
+       [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:nil
+                             inMode:NSDefaultRunLoopMode dequeue:NO];
+    }
 }
 
 /*
@@ -3899,13 +3944,9 @@ int Fl_Cocoa_Screen_Driver::dnd(int use_selection)
   if (text==NULL) return false;
   NSAutoreleasePool *localPool;
   localPool = [[NSAutoreleasePool alloc] init]; 
-  NSPasteboard *mypasteboard = [NSPasteboard pasteboardWithName:NSDragPboard];
-  [mypasteboard declareTypes:[NSArray arrayWithObject:UTF8_pasteboard_type] owner:nil];
-  [mypasteboard setData:(NSData*)text forType:UTF8_pasteboard_type];
-  CFRelease(text);
   Fl_Widget *w = Fl::pushed();
   Fl_Window *win = w->top_window();
-  NSView *myview = [Fl_X::i(win)->xid contentView];
+  FLView *myview = (FLView*)[Fl_X::i(win)->xid contentView];
   NSEvent *theEvent = [NSApp currentEvent];
   
   int width, height;
@@ -3917,13 +3958,29 @@ int Fl_Cocoa_Screen_Driver::dnd(int use_selection)
     image = defaultDragImage(&width, &height);
   }
   
-  static NSSize offset={0,0};
   NSPoint pt = [theEvent locationInWindow];
   pt.x -= width/2;
   pt.y -= height/2;
-  [myview dragImage:image  at:pt  offset:offset 
-              event:theEvent  pasteboard:mypasteboard  
-             source:myview  slideBack:YES];
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+  if (fl_mac_os_version >= 100700) {
+    NSPasteboardItem *pbItem = [[[NSPasteboardItem alloc] init] autorelease];
+    [pbItem setData:(NSData*)text forType:UTF8_pasteboard_type];
+    NSDraggingItem *dragItem = [[[NSDraggingItem alloc] initWithPasteboardWriter:pbItem] autorelease];
+    NSRect r = {pt, {width, height}};
+    [dragItem setDraggingFrame:r contents:image];
+    [myview beginDraggingSessionWithItems:[NSArray arrayWithObject:dragItem] event:theEvent source:myview];
+  } else
+#endif
+  {
+    static NSSize offset={0,0};
+    NSPasteboard *mypasteboard = [NSPasteboard pasteboardWithName:NSDragPboard];
+    [mypasteboard declareTypes:[NSArray arrayWithObject:UTF8_pasteboard_type] owner:nil];
+    [mypasteboard setData:(NSData*)text forType:UTF8_pasteboard_type];
+    [myview dragImage:image  at:pt  offset:offset // deprecated in 10.7
+                event:theEvent  pasteboard:mypasteboard
+               source:myview  slideBack:YES];
+  }
+  CFRelease(text);
   if ( w ) {
     int old_event = Fl::e_number;
     w->handle(Fl::e_number = FL_RELEASE);
@@ -4231,7 +4288,7 @@ int Fl_Cocoa_Window_Driver::decorated_h()
 
 // clip the graphics context to rounded corners
 static void clip_to_rounded_corners(CGContextRef gc, int w, int h) {
-  const CGFloat radius = 5;
+  const CGFloat radius = 7.5;
   CGContextMoveToPoint(gc, 0, 0);
   CGContextAddLineToPoint(gc, 0, h - radius);
   CGContextAddArcToPoint(gc, 0, h,  radius, h, radius);
@@ -4250,7 +4307,6 @@ static CALayer *get_titlebar_layer(Fl_Window *win)
   return nil;
 #endif
 }
-
 
 void Fl_Cocoa_Window_Driver::draw_layer_to_context(CALayer *layer, CGContextRef gc, int w, int h)
 {
@@ -4278,9 +4334,25 @@ void Fl_Cocoa_Window_Driver::capture_titlebar_and_borders(Fl_Shared_Image*& top,
   uchar *rgba = new uchar[4 * w() * htop * 4];
   CGContextRef auxgc = CGBitmapContextCreate(rgba, 2 * w(), 2 * htop, 8, 8 * w(), cspace, kCGImageAlphaPremultipliedLast);
   CGColorSpaceRelease(cspace);
+  CGContextClearRect(auxgc, CGRectMake(0,0,2*w(),2*htop));
   CGContextScaleCTM(auxgc, 2, 2);
   if (layer) {
     Fl_Cocoa_Window_Driver::draw_layer_to_context(layer, auxgc, w(), htop);
+    if (fl_mac_os_version >= 101300) {
+      // drawn layer is left transparent and alpha-premultiplied: demultiply it and set it opaque.
+      uchar *p = rgba;
+      uchar *last = rgba + 4 * w() * htop * 4;
+      while (p < last) {
+        uchar q = *(p+3);
+        if (q) {
+          float m = 255./q;
+          *p++ *= m;
+          *p++ *= m;
+          *p++ *= m;
+          *p++ = 0xff;
+        } else p += 4;
+      }
+    }
   } else {
     CGImageRef img = CGImage_from_window_rect(0, -htop, w(), htop);
     CGContextSaveGState(auxgc);
@@ -4321,5 +4393,5 @@ int Fl_Darwin_System_Driver::calc_mac_os_version() {
 }
 
 //
-// End of "$Id: Fl_cocoa.mm 12342 2017-07-20 09:25:49Z manolo $".
+// End of "$Id: Fl_cocoa.mm 12560 2017-11-13 14:47:49Z manolo $".
 //

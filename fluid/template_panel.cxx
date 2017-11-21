@@ -1,5 +1,5 @@
 //
-// "$Id: template_panel.cxx 12282 2017-06-29 18:12:57Z AlbrechtS $"
+// "$Id: template_panel.cxx 12496 2017-10-15 10:18:53Z AlbrechtS $"
 //
 // FLUID template support for the Fast Light Tool Kit (FLTK).
 //
@@ -202,7 +202,7 @@ void template_delete_cb(Fl_Button *, void *) {
   if (!fl_choice("Are you sure you want to delete the template \"%s\"?",
                  "Cancel", "Delete", 0, name)) return;
   
-  if (unlink(flfile)) {
+  if (fl_unlink(flfile)) {
     fl_alert("Unable to delete template \"%s\":\n%s", name, strerror(errno));
     return;
   }
@@ -245,5 +245,5 @@ void template_load() {
 }
 
 //
-// End of "$Id: template_panel.cxx 12282 2017-06-29 18:12:57Z AlbrechtS $".
+// End of "$Id: template_panel.cxx 12496 2017-10-15 10:18:53Z AlbrechtS $".
 //

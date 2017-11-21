@@ -1,5 +1,5 @@
 //
-// "$Id: unittests.cxx 10565 2015-02-09 18:04:31Z AlbrechtS $"
+// "$Id: unittests.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $"
 //
 // Unit tests for the Fast Light Tool Kit (FLTK).
 //
@@ -153,6 +153,7 @@ public:
 #include "unittest_viewport.cxx"
 #include "unittest_scrollbarsize.cxx"
 #include "unittest_schemes.cxx"
+#include "unittest_simple_terminal.cxx"
 
 // callback whenever the browser value changes
 void Browser_CB(Fl_Widget*, void*) {
@@ -199,5 +200,5 @@ int main(int argc, char **argv) {
 }
 
 //
-// End of "$Id: unittests.cxx 10565 2015-02-09 18:04:31Z AlbrechtS $".
+// End of "$Id: unittests.cxx 12506 2017-10-17 00:28:56Z greg.ercolano $".
 //

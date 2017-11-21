@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_x.cxx 12367 2017-07-30 16:21:57Z manolo $"
+// "$Id: Fl_x.cxx 12497 2017-10-15 10:37:29Z AlbrechtS $"
 //
 // X specific code for the Fast Light Tool Kit (FLTK).
 //
@@ -1159,11 +1159,11 @@ static int wasXExceptionRaised() {
 static bool getNextEvent(XEvent *event_return)
 {
   time_t t = time(NULL);
-  while(!XPending(fl_display))
+  while (!XPending(fl_display))
   {
     if(time(NULL) - t > 10.0)
     {
-      //fprintf(stderr,"Error: The XNextEvent never came...\n");
+      // fprintf(stderr,"Error: The XNextEvent never came...\n");
       return false; 
     }
   }
@@ -1173,7 +1173,7 @@ static bool getNextEvent(XEvent *event_return)
 
 static long getIncrData(uchar* &data, const XSelectionEvent& selevent, long lower_bound)
 {
-//fprintf(stderr,"Incremental transfer starting due to INCR property\n");
+  // fprintf(stderr,"Incremental transfer starting due to INCR property\n");
   size_t total = 0;
   XEvent event;
   XDeleteProperty(fl_display, selevent.requestor, selevent.property);  
@@ -1191,19 +1191,19 @@ static long getIncrData(uchar* &data, const XSelectionEvent& selevent, long lowe
       unsigned char* prop = 0;
       long offset = 0;
       size_t num_bytes;
-      //size_t slice_size = 0;
+      // size_t slice_size = 0;
       do
       {
 	XGetWindowProperty(fl_display, selevent.requestor, selevent.property, offset, 70000, True,
 			   AnyPropertyType, &actual_type, &actual_format, &nitems, &bytes_after, &prop);
 	num_bytes = nitems * (actual_format / 8);
 	offset += num_bytes/4;
-	//slice_size += num_bytes;
+	// slice_size += num_bytes;
 	if (total + num_bytes > (size_t)lower_bound) data = (uchar*)realloc(data, total + num_bytes);
 	memcpy(data + total, prop, num_bytes); total += num_bytes;
 	if (prop) XFree(prop);
       } while (bytes_after != 0);
-//fprintf(stderr,"INCR data size:%ld\n", slice_size);
+      // fprintf(stderr,"INCR data size:%ld\n", slice_size);
       if (num_bytes == 0) break;
     }
     else break;
@@ -1307,10 +1307,11 @@ int fl_handle(const XEvent& thisevent)
       }
 
       if (actual == TARGETS || actual == XA_ATOM) {
-/*for (unsigned i = 0; i<count; i++) {
-  fprintf(stderr," %s", XGetAtomName(fl_display, ((Atom*)portion)[i]) );
-  }
-fprintf(stderr,"\n");*/
+	/*for (unsigned i = 0; i<count; i++) {
+	    fprintf(stderr," %s", XGetAtomName(fl_display, ((Atom*)portion)[i]) );
+	  }
+	  fprintf(stderr,"\n");
+	*/
 	Atom t, type = XA_STRING;
 	if (Fl::e_clipboard_type == Fl::clipboard_image) { // searching for image data
 	  for (unsigned i = 0; i<count; i++) { 
@@ -1353,9 +1354,9 @@ fprintf(stderr,"\n");*/
 	  }
 	else {
 	  Fl::e_clipboard_type = Fl::clipboard_plain_text;
-	  //buffer_format = Fl::clipboard_plain_text;
+	  // buffer_format = Fl::clipboard_plain_text;
 	  }
-//fprintf(stderr,"used format=%s\n", buffer_format);
+	  // fprintf(stderr,"used format=%s\n", buffer_format);
 	return true;
       }
 	if (actual == fl_INCR) {
@@ -1396,7 +1397,7 @@ fprintf(stderr,"\n");*/
       close(fd);
       free(sn_buffer); sn_buffer = 0;
       shared = Fl_Shared_Image::get(tmp_fname);
-      unlink(tmp_fname);
+      fl_unlink(tmp_fname);
       if (!shared) return 0;
       uchar *rgb = new uchar[shared->w() * shared->h() * shared->d()];
       memcpy(rgb, shared->data()[0], shared->w() * shared->h() * shared->d());
@@ -3022,5 +3023,5 @@ static int unused = prepare_print_button();
 #endif // !defined(FL_DOXYGEN)
 
 //
-// End of "$Id: Fl_x.cxx 12367 2017-07-30 16:21:57Z manolo $".
+// End of "$Id: Fl_x.cxx 12497 2017-10-15 10:37:29Z AlbrechtS $".
 //

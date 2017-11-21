@@ -1,5 +1,5 @@
 //
-// "$Id: fl_images_core.cxx 12479 2017-10-05 18:32:52Z AlbrechtS $"
+// "$Id: fl_images_core.cxx 12500 2017-10-15 12:34:24Z AlbrechtS $"
 //
 // FLTK images library core.
 //
@@ -32,6 +32,7 @@
 #include <FL/Fl_PNG_Image.H>
 #include <FL/Fl_PNM_Image.H>
 #include <FL/Fl_SVG_Image.H>
+#include <FL/fl_utf8.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "flstring.h"
@@ -94,7 +95,9 @@ fl_check_images(const char *name,		// I - Filename
 #ifdef FLTK_USE_NANOSVG
 #  if defined(HAVE_LIBZ)
   if (header[0] == 0x1f && header[1] == 0x8b) { // denotes gzip'ed data
-    gzFile gzf = (gzFile)Fl_SVG_Image::fl_gzopen(name);
+    int fd = fl_open_ext(name, 1, 0);
+    if (fd < 0) return NULL;
+    gzFile gzf =  gzdopen(fd, "r");
     if (gzf) {
       gzread(gzf, header, headerlen);
       gzclose(gzf);
@@ -111,5 +114,5 @@ fl_check_images(const char *name,		// I - Filename
 
 
 //
-// End of "$Id: fl_images_core.cxx 12479 2017-10-05 18:32:52Z AlbrechtS $".
+// End of "$Id: fl_images_core.cxx 12500 2017-10-15 12:34:24Z AlbrechtS $".
 //
