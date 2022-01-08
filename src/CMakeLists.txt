@@ -285,6 +285,7 @@ else ()
     drivers/GDI/Fl_GDI_Graphics_Driver_vertex.cxx
     drivers/GDI/Fl_GDI_Copy_Surface_Driver.cxx
     drivers/GDI/Fl_GDI_Image_Surface_Driver.cxx
+    drivers/GDI/DirectWriteGdiInterop/GdiInterop.cpp
     Fl_win32.cxx
     fl_dnd_win32.cxx
     Fl_Native_File_Chooser_WIN32.cxx

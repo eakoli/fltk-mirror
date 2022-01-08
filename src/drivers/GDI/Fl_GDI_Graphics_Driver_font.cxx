@@ -16,6 +16,8 @@
 //     http://www.fltk.org/str.php
 //
 
+#include "DirectWriteGdiInterop/GdiInterop.h"
+
 #ifdef WIN32
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
@@ -584,6 +586,23 @@ exit_error:
   return;
 } // fl_text_extents
 
+void Fl_GDI_Graphics_Driver::draw_text(HDC gc_, int x, int y, WCHAR *wstr, int wn) {
+  DirectWriteGdiInterop::init();
+  if (!DirectWriteGdiInterop::hasDirectWrite()) {
+    // If no Direct2D (Windows version older than Windows 7), fallback to GDI
+    TextOutW(gc_, x, y, wstr, wn);
+  } else {
+    // FLTK uses y as the baseline for the font, while Direct2D
+    // needs it to be the top.
+    int fontHeight=0;
+    Fl_Font_Descriptor *fl_fontsize = font_descriptor();
+    if (fl_fontsize)
+        fontHeight=fl_fontsize->metr.tmAscent;
+
+    DirectWriteGdiInterop::draw_text(gc_, x, y-fontHeight, wstr, wn);
+  }
+}
+
 void Fl_GDI_Graphics_Driver::draw_unscaled(const char* str, int n, int x, int y) {
   COLORREF oldColor = SetTextColor(gc_, fl_RGB());
   // avoid crash if no font has been set yet
@@ -595,7 +614,7 @@ void Fl_GDI_Graphics_Driver::draw_unscaled(const char* str, int n, int x, int y)
     wstr_len = wn + 1;
     wn = fl_utf8toUtf16(str, n, wstr, wstr_len);
   }
-  TextOutW(gc_, x, y, (WCHAR*)wstr, wn);
+  draw_text(gc_, x, y, (WCHAR*)wstr, wn);
   SetTextColor(gc_, oldColor); // restore initial state
 }
 
@@ -610,7 +629,7 @@ void Fl_GDI_Graphics_Driver::draw_unscaled(int angle, const char* str, int n, in
     wstr_len = wn + 1;
     wn = fl_utf8toUtf16(str, n, wstr, wstr_len); // respin the translation
   }
-  TextOutW(gc_, x, y, (WCHAR*)wstr, wn);
+  draw_text(gc_, x, y, (WCHAR*)wstr, wn);
   SetTextColor(gc_, oldColor);
   fl_font(this, Fl_Graphics_Driver::font(), size_unscaled(), 0);
 }
@@ -632,7 +651,7 @@ void Fl_GDI_Graphics_Driver::rtl_draw_unscaled(const char* c, int n, int x, int 
   while (i < wn) { // output char by char is very bad for Arabic but coherent with fl_width()
     lx = (int) width(wstr[i]);
     x -= lx;
-    TextOutW(gc_, x, y, (WCHAR*)wstr + i, 1);
+    draw_text(gc_, x, y, (WCHAR*)wstr + i, 1);
     if (fl_nonspacing(wstr[i])) {
       x += lx;
     }
@@ -640,7 +659,7 @@ void Fl_GDI_Graphics_Driver::rtl_draw_unscaled(const char* c, int n, int x, int 
   }
 #else
   UINT old_align = SetTextAlign(gc_, TA_RIGHT | TA_RTLREADING);
-  TextOutW(gc_, x, y - height_unscaled() + descent_unscaled(), (WCHAR*)wstr, wn);
+  draw_text(gc_, x, y - height_unscaled() + descent_unscaled(), (WCHAR*)wstr, wn);
   SetTextAlign(gc_, old_align);
 #endif
   SetTextColor(gc_, oldColor);

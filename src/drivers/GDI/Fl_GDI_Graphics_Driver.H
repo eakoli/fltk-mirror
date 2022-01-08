@@ -40,6 +40,7 @@ private:
   int depth; // to support translation
   POINT *origins; // to support translation
   void set_current_();
+  void draw_text(HDC gc_, int x, int y, WCHAR *wstr, int wn);
 protected:
   HDC gc_;
   int numcount;
