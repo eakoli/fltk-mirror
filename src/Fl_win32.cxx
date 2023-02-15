@@ -1103,6 +1103,8 @@ extern HPALETTE fl_select_palette(void); // in fl_color_win32.cxx
 
 
 static Fl_Window* resize_bug_fix;
+static Fl_Window* sizemove_loop_window = NULL;
+static float sizemove_loop_scale = 1;
 
 extern void fl_save_pen(void);
 extern void fl_restore_pen(void);
@@ -1128,6 +1130,8 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 #ifdef FLTK_HIDPI_SUPPORT
     case 0x02E0: { // WM_DPICHANGED:
       if (!Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.busy) {
+        // If there is no SIZE/MOVE op, just resize
+        if (sizemove_loop_window != window) {
         RECT r;
         float f = HIWORD(wParam)/96.;
         GetClientRect(hWnd, &r);
@@ -1135,6 +1139,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         int ns = window->driver()->screen_num();
         Fl::screen_driver()->scale(ns, f);
         window->driver()->resize_after_scale_change(ns, old_f,  f);
+        }
       }
     }
     return 0;
@@ -1442,6 +1447,36 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
       Fl_WinAPI_Window_Driver::driver(window)->set_minmax((LPMINMAXINFO)lParam);
     break;
 
+  case WM_ENTERSIZEMOVE: {
+    sizemove_loop_window = window;
+    sizemove_loop_scale = scale;
+    return 0;
+  }
+  case WM_EXITSIZEMOVE: {
+    if (sizemove_loop_window == window) {
+      // Check if we have changed DPI (by moving to another screen) and resize
+      Fl_WinAPI_Screen_Driver *sd = (Fl_WinAPI_Screen_Driver*)Fl::screen_driver();
+      Fl_WinAPI_Window_Driver *wd = Fl_WinAPI_Window_Driver::driver(window);
+      int olds = wd->screen_num();
+      int news = sd->screen_num_unscaled(window->x()*scale + window->w()*scale/2, window->y()*scale + window->h()*scale/2);
+      if (news == -1) news = olds;
+      float s = sd->scale(news);
+      if (olds != news) {
+        if (s != sd->scale(olds) &&
+            !Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.busy &&
+            window->user_data() != &Fl_WinAPI_Screen_Driver::transient_scale_display) {
+              
+          Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.busy = true;
+          Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.screen = news;
+          Fl_WinAPI_Window_Driver::resize_after_screen_change(window);
+        }
+        else if(!Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.busy) wd->screen_num(news);
+      }
+    }
+    sizemove_loop_window = NULL;
+    return 0;
+  }
+  
   case WM_SIZE:
     if (!window->parent()) {
       if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXHIDE) {
@@ -1464,6 +1499,9 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
     int ny = HIWORD(lParam);
     if (nx & 0x8000) nx -= 65536;
     if (ny & 0x8000) ny -= 65536;
+    
+    // If there is no SIZE/MOVE op, resize if changing screen
+    if (sizemove_loop_window != window) {
 //fprintf(LOG,"WM_MOVE position(%d,%d) s=%.2f\n",int(nx/scale),int(ny/scale),scale);
 // detect when window centre changes screen
     Fl_WinAPI_Screen_Driver *sd = (Fl_WinAPI_Screen_Driver*)Fl::screen_driver();
@@ -1482,6 +1520,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         Fl::add_timeout(1, Fl_WinAPI_Window_Driver::resize_after_screen_change, window);
       }
       else if(!Fl_WinAPI_Window_Driver::data_for_resize_window_between_screens_.busy) wd->screen_num(news);
+    }
     }
       window->position(nx/scale, ny/scale);
   }
