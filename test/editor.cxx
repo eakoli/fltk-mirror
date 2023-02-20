@@ -31,7 +31,7 @@
 #ifdef __MWERKS__
 # define FL_DLL
 #endif
-
+#define FL_INTERNALS
 #include <FL/Fl.H>
 #include <FL/x.H> // for fl_open_callback
 #include <FL/Fl_Group.H>
@@ -455,6 +455,153 @@ class EditorWindow : public Fl_Double_Window {
     char               search[256];
 };
 
+#if defined(WIN32)
+
+#include <FL/Fl_Window_Driver.H>
+#include <FL/Fl_Screen_Driver.H>
+#include <src/drivers/WinAPI/Fl_WinAPI_Window_Driver.H>
+#include <src/drivers/WinAPI/Fl_WinAPI_Screen_Driver.H>
+#include <FL/x.h>
+#include <windows.h>
+#include <commctrl.h>
+#include <cmath>
+
+// Same function as in FLTK_Window_Driver.cpp
+extern void set_driver( void* w, void* d );
+
+static Fl_Window* sizemove_loop_window = NULL;
+static float sizemove_loop_scale = 1;
+
+// FIXME: THIS IS THE PROBLEMATIC VAR
+static Fl_Window* resize_bug_fix = NULL;
+
+static LRESULT CALLBACK Subclass_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
+  Fl_Window *window = fl_find(hWnd);
+  float scale = (window ? Fl::screen_driver()->scale(window->driver()->screen_num()) : 1);
+
+  if (window) switch (uMsg) {
+    case 0x02E0: { // WM_DPICHANGED:
+        // If there is SIZE/MOVE op do nothing, otherwise call default.
+        // This is to avoid an issue with WM_SIZE, which reports always original size (when move/size loop started), 
+        // despite changing it somewhere during the loop.
+        if (sizemove_loop_window == window) {
+          return 0;
+        }
+        break;
+    }
+    case WM_ENTERSIZEMOVE: {
+      sizemove_loop_window = window;
+      sizemove_loop_scale = scale;
+      return 0;
+    }
+    case WM_EXITSIZEMOVE: {
+      sizemove_loop_window = NULL;
+      
+      // Send a WM_MOVE without an actual move, so it triggers the screen-change logic.
+      int nx = window->x()*scale;
+      if (nx < 0) nx += 65536;
+      int ny = window->y()*scale;
+      if (ny < 0) ny += 65536;
+      
+      SendMessage(hWnd, WM_MOVE, 0, MAKELPARAM(nx, ny));
+      return 0;
+    }
+    case WM_SIZE: {
+      // Update the resize_bug_fix var and fall to the default one.
+      resize_bug_fix = window;
+      break;
+    }
+    case WM_MOVE: {
+      resize_bug_fix = window;
+      
+      // If we are in size/move loop, just move and don't call default. Otherwise, call default
+      if (sizemove_loop_window == window) {
+        int nx = LOWORD(lParam);
+        int ny = HIWORD(lParam);
+        if (nx & 0x8000) nx -= 65536;
+        if (ny & 0x8000) ny -= 65536;
+        
+        window->position(nx/scale, ny/scale);
+        
+        return 0;
+      }
+    }
+    default:
+      // Any other message, just call deafult
+      break;
+  }
+
+  return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// THIS CLASS IS THE SAME IN fltk_drivers.cpp, with some additional overrides
+struct FLTK_Window_Driver: public Fl_WinAPI_Window_Driver {
+  using Fl_WinAPI_Window_Driver::Fl_WinAPI_Window_Driver;
+  
+  Fl_X *makeWindow() override{ 
+    Fl_X *window = Fl_WinAPI_Window_Driver::makeWindow();
+    
+    // Subclass the window, so we can add our custom WndHook
+    auto hwnd = fl_xid(window->w);
+    SetWindowSubclass(hwnd, &Subclass_WndProc, 1, 0);
+    
+    return window;
+  }
+    
+  void resize(int X,int Y,int W,int H) override {
+    // COPY-PASTED Fl_WinAPI_Window_Driver::resize METHOD, 
+    // WE NEED TO USE OUR resize_bug_fix INSTANCE, INSTEAD OF THE ORIGINAL ONE
+    UINT flags = SWP_NOSENDCHANGING | SWP_NOZORDER
+              | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
+    int is_a_resize = (W != w() || H != h() || is_a_rescale());
+    int resize_from_program = (pWindow != resize_bug_fix);
+    if (!resize_from_program) resize_bug_fix = 0;
+    if (X != x() || Y != y() || is_a_rescale()) {
+      force_position(1);
+    } else {
+      if (!is_a_resize) return;
+      flags |= SWP_NOMOVE;
+    }
+    if (is_a_resize) {
+      pWindow->Fl_Group::resize(X,Y,W,H);
+      if (visible_r()) {
+        pWindow->redraw();
+        // only wait for exposure if this window has a size - a window
+        // with no width or height will never get an exposure event
+        Fl_X *i = Fl_X::i(pWindow);
+        if (i && W>0 && H>0)
+          wait_for_expose_value = 1;
+      }
+    } else {
+      x(X); y(Y);
+      flags |= SWP_NOSIZE;
+    }
+    if (!border()) flags |= SWP_NOACTIVATE;
+    if (resize_from_program && shown()) {
+      if (!pWindow->resizable()) pWindow->size_range(w(), h(), w(), h());
+      int dummy_x, dummy_y, bt, bx, by;
+      // compute window position and size in scaled units
+      float s = Fl::screen_driver()->scale(screen_num());
+      int scaledX = ceil(X*s), scaledY= ceil(Y*s), scaledW = ceil(W*s), scaledH = ceil(H*s);
+      //Ignore window managing when resizing, so that windows (and more
+      //specifically menus) can be moved offscreen.
+      if (fake_X_wm(dummy_x, dummy_y, bt, bx, by)) {
+        scaledX -= bx;
+        scaledY -= by+bt;
+        scaledW += 2*bx;
+        scaledH += 2*by+bt;
+      }
+      // avoid zero size windows. A zero sized window on Win32
+      // will cause continouly  new redraw events.
+      if (scaledW<=0) scaledW = 1;
+      if (scaledH<=0) scaledH = 1;
+      SetWindowPos(fl_xid(pWindow), 0, scaledX, scaledY, scaledW, scaledH, flags);
+    }
+  }
+};
+
+#endif
+
 EditorWindow::EditorWindow(int w, int h, const char* t) : Fl_Double_Window(w, h, t) {
   replace_dlg = new Fl_Window(300, 105, "Replace");
     replace_find = new Fl_Input(80, 10, 210, 25, "Find:");
@@ -477,6 +624,9 @@ EditorWindow::EditorWindow(int w, int h, const char* t) : Fl_Double_Window(w, h,
   *search = (char)0;
   wrap_mode = 0;
   line_numbers = 0;
+  
+  // This call is the same as the one in UI_Window
+  ::set_driver(this, new FLTK_Window_Driver(this));
 }
 
 EditorWindow::~EditorWindow() {
